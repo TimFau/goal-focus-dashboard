@@ -67,6 +67,12 @@ export default function Dashboard() {
     },
     async addTask(category: 'career'|'langpulse'|'health'|'life', title: string) {
       const res = await fetch('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ date: toISODate(), category, title }) })
+      if (!res.ok) {
+        const err = await res.json().catch(()=>({}))
+        console.error('Failed to add task', err)
+        alert('Failed to add task')
+        return
+      }
       const created = await res.json()
       setData(d => d ? ({...d, [category]: [...(d as any)[category], created] }) : d)
     }
