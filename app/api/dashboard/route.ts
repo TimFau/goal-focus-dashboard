@@ -1,26 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabaseServer'
-import { getUserIdFromEnvDevOnly } from '@/lib/user'
+import { createSsrClient } from '@/lib/supabaseSsr'
+
+type Task = { id: string; title: string; done: boolean; low_energy: boolean; category: string }
 
 export async function GET(req: NextRequest) {
+  const supabase = createSsrClient()
+  const { data: auth } = await supabase.auth.getUser()
+  if (!auth.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const { searchParams } = new URL(req.url)
   const date = searchParams.get('date') || new Date().toISOString().slice(0,10)
-  const userId = getUserIdFromEnvDevOnly()
-  const admin = supabaseAdmin()
 
-  // Fetch tasks due on this date
-  const { data: tasks, error } = await admin
+  // With RLS on, we can just select and the policy filters to this user.
+  const { data: tasks, error } = await supabase
     .from('tasks')
     .select('id, title, done, low_energy, category')
-    .eq('user_id', userId)
     .eq('due_date', date)
     .order('created_at', { ascending: true })
 
   if (error) return NextResponse.json({ error }, { status: 500 })
 
-  const pick = (cat: string) => (tasks ?? []).filter(t => t.category === cat)
+  const pick = (cat: string) => (tasks ?? [] as Task[]).filter(t => t.category === cat)
   return NextResponse.json({
-    focus: [{ title:'' }, { title:'' }, { title:'' }], // wire daily_focus later
+    focus: [{ title:'' }, { title:'' }, { title:'' }], // daily_focus later
     career: pick('career'),
     langpulse: pick('langpulse'),
     health: pick('health'),

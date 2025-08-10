@@ -1,0 +1,35 @@
+---
+description: Writing commit messages
+globs: 
+alwaysApply: false
+---
+### Conventional Commit Messages Rule
+
+When asked to write a commit message, always produce a Conventional Commit formatted message and output it as plain text (no code fences), suitable for direct copy/paste into SmartGit.
+
+Requirements
+- Type and scope: `type(scope): subject`
+  - Common types: `feat`, `fix`, `chore`, `docs`, `refactor`, `perf`, `test`, `build`, `ci`, `revert`
+  - Scope is optional but recommended (e.g., `api`, `auth`, `ui`)
+- Subject:
+  - Imperative, present tense
+  - No trailing period
+  - ≤ 72 characters if possible
+- Body (optional):
+  - Use short bullets or paragraphs explaining what and why (not how)
+  - Wrap at ~72 characters when reasonable
+- Footer (optional):
+  - Use for breaking changes or issue references
+  - Breaking changes should be prefixed with `BREAKING CHANGE:`
+
+Output format
+- Return the commit message as a single plain text block, not wrapped in backticks
+- Do not include any additional commentary
+
+Examples
+- Single-line:
+  - `feat(api): add POST /tasks with week upsert`
+- With body:
+  - `fix(auth): ensure SSR cookies are set in middleware\n\n- use getAll/setAll cookies with @supabase/ssr\n- add types to avoid implicit any in route handlers`
+- With breaking change:
+  - `feat(auth): replace DEV_USER_ID hack with SSR auth\n\n- add sign-in/up pages and sign-out route\n- gate app with middleware and RLS\n\nBREAKING CHANGE: removes DEV_USER_ID flow; requires real auth tokens.`

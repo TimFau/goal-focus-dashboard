@@ -1,25 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabaseServer'
-import { getUserIdFromEnvDevOnly } from '@/lib/user'
+import { createSsrClient } from '@/lib/supabaseSsr'
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string }}) {
+  const supabase = createSsrClient()
+  const { data: auth } = await supabase.auth.getUser()
+  if (!auth.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const { done } = await req.json()
   if (typeof done !== 'boolean') {
     return NextResponse.json({ error: 'done must be boolean' }, { status: 400 })
   }
-  const userId = getUserIdFromEnvDevOnly()
-  const admin = supabaseAdmin()
 
-  // Ensure the task belongs to our dev user (defensive)
-  const { data: task, error: fetchErr } = await admin
-    .from('tasks')
-    .select('id, user_id')
-    .eq('id', params.id)
-    .single()
-  if (fetchErr || !task) return NextResponse.json({ error: fetchErr ?? 'Not found' }, { status: 404 })
-  if (task.user_id !== userId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-
-  const { error } = await admin
+  // RLS ensures only owner row can be updated
+  const { error } = await supabase
     .from('tasks')
     .update({ done })
     .eq('id', params.id)
