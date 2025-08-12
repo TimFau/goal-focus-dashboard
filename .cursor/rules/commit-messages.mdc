@@ -23,7 +23,7 @@ Requirements
   - Breaking changes should be prefixed with `BREAKING CHANGE:`
 
 Output format
-- Return the commit message as a single plain text block, not wrapped in backticks
+- Return the commit message as a single plain text block in markdown, not wrapped in backticks
 - Do not include any additional commentary
 
 Examples

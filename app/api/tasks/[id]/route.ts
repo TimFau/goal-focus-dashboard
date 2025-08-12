@@ -6,15 +6,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const { data: auth } = await supabase.auth.getUser()
   if (!auth.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { done } = await req.json()
-  if (typeof done !== 'boolean') {
-    return NextResponse.json({ error: 'done must be boolean' }, { status: 400 })
+  const payload = await req.json() as { done?: boolean; category?: 'career'|'langpulse'|'health'|'life'; due_date?: string }
+  if (payload.done === undefined && payload.category === undefined && payload.due_date === undefined) {
+    return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
   }
 
-  // RLS ensures only owner row can be updated
   const { error } = await supabase
     .from('tasks')
-    .update({ done })
+    .update(payload as any)
     .eq('id', params.id)
 
   if (error) return NextResponse.json({ error }, { status: 500 })
