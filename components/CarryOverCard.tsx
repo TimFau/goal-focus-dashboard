@@ -6,10 +6,12 @@ import { addDays, nextMonday, toISODate, ageInDays } from '@/lib/date'
 type Task = { id: string; title: string; done: boolean; low_energy: boolean; category: 'career'|'langpulse'|'health'|'life'; due_date?: string }
 
 function DraggableItem({ task }: { task: Task }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id, data: { task } })
+  const { attributes, listeners, setNodeRef, isDragging, transform } = useDraggable({ id: task.id, data: { task } })
+  const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, zIndex: 20 } : undefined
   return (
     <li ref={setNodeRef} {...listeners} {...attributes}
-      className={`flex items-center gap-3 p-2 rounded ${isDragging?'bg-white/10':'hover:bg-white/5'}`}>
+      style={style}
+      className={`flex items-center gap-3 p-2 rounded cursor-grab active:cursor-grabbing ${isDragging?'bg-white/10 shadow-lg ring-1 ring-white/20':'hover:bg-white/5'}`}>
       <input className="chk" type="checkbox" checked={task.done} readOnly />
       <span className={task.done ? 'line-through opacity-50' : ''}>{task.title}</span>
       <span className="ml-auto text-xs opacity-60">{task.category} · {task.due_date}</span>

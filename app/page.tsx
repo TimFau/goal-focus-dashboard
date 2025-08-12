@@ -8,6 +8,7 @@ import { toISODate } from '@/lib/date'
 import CarryOverCard from '@/components/CarryOverCard'
 import { DndProvider, Droppable } from '@/components/DnD'
 import type { DragEndEvent } from '@dnd-kit/core'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 type Task = { id: string; title: string; done: boolean; low_energy: boolean; category: 'career'|'langpulse'|'health'|'life'; due_date?: string }
 type Data = {
@@ -29,56 +30,51 @@ async function fetchDashboard(date: string, view: 'planned'|'all'): Promise<Data
 }
 
 export default function Dashboard() {
+  const router = useRouter()
+  const params = useSearchParams()
+
+  const date = params.get('date') ?? toISODate()
+  const view = (params.get('view') as 'planned'|'all') || 'planned'
+
   const [energy, setEnergy] = useState<'all'|'low'>('all')
-  const [view, setView] = useState<'planned'|'all'>('planned')
-  const [date, setDate] = useState<string>(() => {
-    const p = new URLSearchParams(window.location.search)
-    return p.get('date') ?? toISODate()
-  })
   const [data, setData] = useState<Data | null>(null)
 
-  const load = async () => {
-    const p = new URLSearchParams(window.location.search)
-    const d = p.get('date') ?? toISODate()
-    const v = (p.get('view') as 'planned'|'all') || view
-    setDate(d); setView(v)
+  const load = async (d: string, v: 'planned'|'all') => {
     const payload = await fetchDashboard(d, v)
     setData(payload)
   }
 
-  useEffect(() => { load().catch(()=>{}) }, [])
+  useEffect(() => { load(date, view).catch(()=>{}) }, [date, view])
 
   const handlers = {
     async setFocus(items: {title?:string}[]) {
       await fetch('/api/focus', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ date, items: items.map(i => ({ free_text: i?.title ?? '' })) }) })
-      await load()
+      await load(date, view)
     },
     async toggleTask(id: string, done: boolean) {
       await fetch('/api/tasks/'+id, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ done }) })
-      await load()
+      await load(date, view)
     },
     async addTask(category: 'career'|'langpulse'|'health'|'life', title: string) {
       await fetch('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ date, category, title }) })
-      await load()
+      await load(date, view)
     },
     async promote(ids: string[], category: Task['category'], when: string) {
       await fetch('/api/tasks/bulk', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ids, op:'promote', category, date: when }) })
-      await load()
+      await load(date, view)
     },
     async snooze(ids: string[], when: string) {
       await fetch('/api/tasks/bulk', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ids, op:'snooze', date: when }) })
-      await load()
+      await load(date, view)
     },
     async del(ids: string[]) {
       await fetch('/api/tasks/bulk', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ids, op:'delete' }) })
-      await load()
+      await load(date, view)
     },
     setView(v: 'planned'|'all') {
-      const q = new URLSearchParams(window.location.search)
+      const q = new URLSearchParams(params.toString())
       q.set('view', v); q.set('date', date)
-      history.replaceState(null, '', '/?'+q.toString())
-      setView(v)
-      fetchDashboard(date, v).then(setData).catch(()=>{})
+      router.replace('/?'+q.toString())
     }
   }
 
