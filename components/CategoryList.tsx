@@ -8,6 +8,7 @@ type Props = {
   energy: 'all'|'low'
 }
 import { useState, useMemo } from 'react'
+import { CheckIconButton } from '@/components/IconButton'
 
 export default function CategoryList({title, tasks, onToggle, onAdd, energy}: Props) {
   const [adding, setAdding] = useState('')
@@ -23,7 +24,7 @@ export default function CategoryList({title, tasks, onToggle, onAdd, energy}: Pr
       <ul className="space-y-2">
         {filtered.map(t => (
           <li key={t.id} className="flex items-center gap-3">
-            <input className="chk" type="checkbox" checked={t.done} onChange={e=>onToggle(t.id, e.target.checked)} />
+            <CheckIconButton aria-label={t.done ? 'Mark task as not done' : 'Mark task as done'} title={t.done ? 'Mark task as not done' : 'Mark task as done'} onClick={()=>onToggle(t.id, !t.done)} />
             <label className={t.done ? 'line-through opacity-50' : ''}>{t.title}</label>
             {t.low_energy && <span className="ml-auto text-xs opacity-60">low</span>}
           </li>

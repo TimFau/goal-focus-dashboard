@@ -10,3 +10,8 @@ body { background: var(--bg); color: var(--fg); }
 label { @apply select-none; }
 input[type="text"] { @apply bg-transparent border border-white/20 rounded px-3 py-2 w-full; }
 select { @apply bg-transparent border border-white/20 rounded px-3 py-2 w-full; }
+/* Shared icon button styles */
+.icon-btn { @apply inline-flex items-center justify-center rounded-full border border-white/20 text-xs leading-none focus:outline-none focus:ring-2; width: 1.5rem; height: 1.5rem; }
+.icon-btn-sm { width: 1.25rem; height: 1.25rem; }
+.icon-btn--success { @apply hover:bg-green-500/20 hover:text-green-300 focus:ring-green-400; }
+.icon-btn--danger { @apply hover:bg-red-500/20 hover:text-red-300 focus:ring-red-400; }

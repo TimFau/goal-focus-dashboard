@@ -9,6 +9,7 @@ import CarryOverCard from '@/components/CarryOverCard'
 import { DndProvider, Droppable } from '@/components/DnD'
 import type { DragEndEvent } from '@dnd-kit/core'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { CheckIconButton } from '@/components/IconButton'
 
 type Task = { id: string; title: string; done: boolean; low_energy: boolean; category: 'career'|'langpulse'|'health'|'life'; due_date?: string }
 type Data = {
@@ -71,6 +72,10 @@ export default function Dashboard() {
       await fetch('/api/tasks/bulk', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ids, op:'delete' }) })
       await load(date, view)
     },
+    async complete(ids: string[]) {
+      await fetch('/api/tasks/bulk', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ids, op:'complete' }) })
+      await load(date, view)
+    },
     setView(v: 'planned'|'all') {
       const q = new URLSearchParams(params.toString())
       q.set('view', v); q.set('date', date)
@@ -115,6 +120,7 @@ export default function Dashboard() {
               onPromote={handlers.promote}
               onSnooze={handlers.snooze}
               onDelete={handlers.del}
+              onComplete={handlers.complete}
             />
 
             <div className="grid gap-4">
@@ -147,7 +153,7 @@ export default function Dashboard() {
                   .sort((a,b)=>(a.due_date??'').localeCompare(b.due_date??''))
                   .map(t => (
                     <li key={t.id} className="flex items-center gap-3">
-                      <input className="chk" type="checkbox" checked={t.done} onChange={e=>handlers.toggleTask(t.id, e.target.checked)} />
+                      <CheckIconButton aria-label={t.done ? 'Mark task as not done' : 'Mark task as done'} title={t.done ? 'Mark task as not done' : 'Mark task as done'} onClick={()=>handlers.toggleTask(t.id, !t.done)} />
                       <span className={t.done ? 'line-through opacity-50' : ''}>{t.title}</span>
                       <span className="ml-auto text-xs opacity-60">{t.category} · {t.due_date}</span>
                     </li>

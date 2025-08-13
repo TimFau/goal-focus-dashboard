@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSsrClient } from '@/lib/supabaseSsr'
 
-type Op = 'promote' | 'snooze' | 'delete'
+type Op = 'promote' | 'snooze' | 'delete' | 'complete'
 
 export async function POST(req: NextRequest) {
   const supabase = createSsrClient()
@@ -40,6 +40,15 @@ export async function POST(req: NextRequest) {
     const { error } = await supabase
       .from('tasks')
       .update({ due_date: body.date })
+      .in('id', body.ids)
+    if (error) return NextResponse.json({ error }, { status: 500 })
+    return NextResponse.json({ ok: true, updated: body.ids.length })
+  }
+
+  if (body.op === 'complete') {
+    const { error } = await supabase
+      .from('tasks')
+      .update({ done: true })
       .in('id', body.ids)
     if (error) return NextResponse.json({ error }, { status: 500 })
     return NextResponse.json({ ok: true, updated: body.ids.length })

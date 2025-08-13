@@ -5,30 +5,33 @@ import { addDays, nextMonday, toISODate, ageInDays } from '@/lib/date'
 
 type Task = { id: string; title: string; done: boolean; low_energy: boolean; category: 'career'|'langpulse'|'health'|'life'; due_date?: string }
 
-function DraggableItem({ task }: { task: Task }) {
+import { CheckIconButton } from '@/components/IconButton'
+
+function DraggableItem({ task, left }: { task: Task; left: React.ReactNode }) {
   const { attributes, listeners, setNodeRef, isDragging, transform } = useDraggable({ id: task.id, data: { task } })
   const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, zIndex: 20 } : undefined
   return (
-    <li ref={setNodeRef} {...listeners} {...attributes}
+    <div ref={setNodeRef} {...listeners} {...attributes}
       style={style}
-      className={`flex items-center gap-3 p-2 rounded cursor-grab active:cursor-grabbing ${isDragging?'bg-white/10 shadow-lg ring-1 ring-white/20':'hover:bg-white/5'}`}>
-      <input className="chk" type="checkbox" checked={task.done} readOnly />
+      className={`flex-1 flex items-center gap-2 p-2 rounded cursor-grab active:cursor-grabbing ${isDragging?'bg-white/10 shadow-lg ring-1 ring-white/20':'hover:bg-white/5'}`}>
+      {left}
       <span className={task.done ? 'line-through opacity-50' : ''}>{task.title}</span>
-      <span className="ml-auto text-xs opacity-60">{task.category} · {task.due_date}</span>
-    </li>
+    </div>
   )
 }
 
 export default function CarryOverCard({
   items,
   onPromote,     // (ids, category, date) => Promise<void>
-  onSnooze,      // (ids, date) => Promise<void>
+  onSnooze,      // (ids, date) => Promise<void)
   onDelete,      // (ids) => Promise<void>
+  onComplete,    // (ids) => Promise<void>
 }: {
   items: Task[]
   onPromote: (ids: string[], category: Task['category'], date: string) => Promise<void>
   onSnooze: (ids: string[], date: string) => Promise<void>
   onDelete: (ids: string[]) => Promise<void>
+  onComplete: (ids: string[]) => Promise<void>
 }) {
   const [expanded, setExpanded] = useState<boolean>(false)
   const [selected, setSelected] = useState<Record<string, boolean>>({})
@@ -118,6 +121,7 @@ export default function CarryOverCard({
             <button className="btn" onClick={()=>quickSnooze(1)}>Snooze → Tomorrow</button>
             <button className="btn" onClick={()=>quickSnooze(3)}>Snooze → +3d</button>
             <button className="btn" onClick={snoozeNextMon}>Snooze → Next Mon</button>
+            <button className="btn" onClick={async()=>{ await onComplete(anySelected?idsSelected:items.map(i=>i.id)); setSelected({}) }}>Complete</button>
             <button className="btn" onClick={async()=>{ await onDelete(anySelected?idsSelected:items.map(i=>i.id)); setSelected({}) }}>Delete</button>
           </div>
 
@@ -126,8 +130,9 @@ export default function CarryOverCard({
             {top[0].map((t) => (
               <li key={t.id} className="flex items-center gap-3 p-2 rounded hover:bg-white/5">
                 <input type="checkbox" className="chk" checked={!!selected[t.id]} onChange={e=>setSelected(s=>({...s,[t.id]:e.target.checked}))} />
-                {/* Draggable handle via whole item for simplicity */}
-                <DraggableItem task={t} />
+                {/* Draggable area with inline completion icon and title */}
+                <DraggableItem task={t} left={<CheckIconButton onClick={async (e)=>{ e.stopPropagation(); await onComplete([t.id]) }} />} />
+                <span className="text-xs opacity-60">{t.category} · {t.due_date}</span>
                 {/* Inline quick actions */}
                 <div className="ml-auto flex items-center gap-2">
                   <select className="text-sm" onChange={async e=>{
