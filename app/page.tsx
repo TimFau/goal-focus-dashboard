@@ -1,15 +1,14 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import EnergyToggle from '@/components/EnergyToggle'
 import TopThree from '@/components/TopThree'
 import CategoryList from '@/components/CategoryList'
 import DayNav from '@/components/DayNav'
 import { toISODate } from '@/lib/date'
 import CarryOverCard from '@/components/CarryOverCard'
+import TopThreeModal from '@/components/TopThreeModal'
 import { DndProvider, Droppable } from '@/components/DnD'
 import type { DragEndEvent } from '@dnd-kit/core'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { CheckIconButton } from '@/components/IconButton'
 
 type Task = { id: string; title: string; done: boolean; low_energy: boolean; category: 'career'|'langpulse'|'health'|'life'; due_date?: string }
 type Data = {
@@ -31,55 +30,71 @@ async function fetchDashboard(date: string, view: 'planned'|'all'): Promise<Data
 }
 
 export default function Dashboard() {
-  const router = useRouter()
-  const params = useSearchParams()
-
-  const date = params.get('date') ?? toISODate()
-  const view = (params.get('view') as 'planned'|'all') || 'planned'
-
   const [energy, setEnergy] = useState<'all'|'low'>('all')
+  const [view, setView] = useState<'planned'|'all'>('planned')
+  const [date, setDate] = useState<string>(() => {
+    const p = new URLSearchParams(window.location.search)
+    return p.get('date') ?? toISODate()
+  })
   const [data, setData] = useState<Data | null>(null)
+  const [showTop3Modal, setShowTop3Modal] = useState(false)
 
-  const load = async (d: string, v: 'planned'|'all') => {
+  const load = async () => {
+    const p = new URLSearchParams(window.location.search)
+    const d = p.get('date') ?? toISODate()
+    const v = (p.get('view') as 'planned'|'all') || view
+    setDate(d); setView(v)
     const payload = await fetchDashboard(d, v)
     setData(payload)
+
+    // Morning prompt: if all three are blank and we haven't prompted today, show it
+    const allBlank = !(payload.focus?.[0]?.title || payload.focus?.[1]?.title || payload.focus?.[2]?.title)
+    const key = 'top3.prompt.'+toISODate()
+    const prompted = localStorage.getItem(key) === '1'
+    if (allBlank && !prompted) {
+      setShowTop3Modal(true)
+      localStorage.setItem(key, '1')
+    }
   }
 
-  useEffect(() => { load(date, view).catch(()=>{}) }, [date, view])
+  useEffect(() => { load().catch(()=>{}) }, [])
 
   const handlers = {
-    async setFocus(items: {title?:string}[]) {
-      await fetch('/api/focus', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ date, items: items.map(i => ({ free_text: i?.title ?? '' })) }) })
-      await load(date, view)
+    async setFocus(items: Array<{ title?: string; task_id?: string } | null>) {
+      const payload = items.map(i => i ? ({ task_id: i.task_id, free_text: i.title && !i.task_id ? i.title : undefined }) : null)
+      await fetch('/api/focus', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ date, items: payload }) })
+      await load()
+    },
+    async markTaskDone(taskId: string) {
+      await fetch('/api/tasks/'+taskId, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ done: true }) })
+      await load()
     },
     async toggleTask(id: string, done: boolean) {
       await fetch('/api/tasks/'+id, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ done }) })
-      await load(date, view)
+      await load()
     },
     async addTask(category: 'career'|'langpulse'|'health'|'life', title: string) {
       await fetch('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ date, category, title }) })
-      await load(date, view)
+      await load()
     },
     async promote(ids: string[], category: Task['category'], when: string) {
       await fetch('/api/tasks/bulk', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ids, op:'promote', category, date: when }) })
-      await load(date, view)
+      await load()
     },
     async snooze(ids: string[], when: string) {
       await fetch('/api/tasks/bulk', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ids, op:'snooze', date: when }) })
-      await load(date, view)
+      await load()
     },
     async del(ids: string[]) {
       await fetch('/api/tasks/bulk', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ids, op:'delete' }) })
-      await load(date, view)
-    },
-    async complete(ids: string[]) {
-      await fetch('/api/tasks/bulk', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ids, op:'complete' }) })
-      await load(date, view)
+      await load()
     },
     setView(v: 'planned'|'all') {
-      const q = new URLSearchParams(params.toString())
+      const q = new URLSearchParams(window.location.search)
       q.set('view', v); q.set('date', date)
-      router.replace('/?'+q.toString())
+      history.replaceState(null, '', '/?'+q.toString())
+      setView(v)
+      fetchDashboard(date, v).then(setData).catch(()=>{})
     }
   }
 
@@ -91,10 +106,22 @@ export default function Dashboard() {
 
   const onDragEnd = async (e: DragEndEvent) => {
     const task = e.active?.data?.current?.task as Task | undefined
-    const target = e.over?.id as 'career'|'langpulse'|'health'|'life'|undefined
+    const target = e.over?.id as string | undefined
     if (!task || !target) return
-    // Promote to today + set category from drop target
-    await handlers.promote([task.id], target, toISODate())
+
+    if (target.startsWith('top3-slot-')) {
+      const slotNum = Number(target.split('-').pop())
+      // Update Top 3 with this task
+      const current: Array<{ title?: string; task_id?: string } | null> = [0,1,2].map(i => ({ title: data.focus?.[i]?.title ?? '' }))
+      current[slotNum-1] = { title: task.title, task_id: task.id }
+      await handlers.setFocus(current)
+      return
+    }
+
+    // Dropped into category: promote to today
+    if (['career','langpulse','health','life'].includes(target)) {
+      await handlers.promote([task.id], target as any, toISODate())
+    }
   }
 
   return (
@@ -111,7 +138,19 @@ export default function Dashboard() {
           <EnergyToggle value={energy} onChange={setEnergy} />
         </div>
 
-        <TopThree initial={data.focus} onSet={(items)=>handlers.setFocus(items as any)} />
+        <TopThree
+          initial={data.focus}
+          onSet={handlers.setFocus}
+          onMarkTaskDone={handlers.markTaskDone}
+        />
+
+        <TopThreeModal
+          open={showTop3Modal}
+          onClose={()=>setShowTop3Modal(false)}
+          plannedToday={plannedToday}
+          carryOver={carryOver}
+          onAccept={async (items: Array<{ title: string; task_id?: string }>)=>{ await handlers.setFocus(items); }}
+        />
 
         {view === 'planned' ? (
           <>
@@ -120,9 +159,8 @@ export default function Dashboard() {
               onPromote={handlers.promote}
               onSnooze={handlers.snooze}
               onDelete={handlers.del}
-              onComplete={handlers.complete}
+              onComplete={async (ids)=>{ await fetch('/api/tasks/bulk', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ids, op:'complete' }) }); await load() }}
             />
-
             <div className="grid gap-4">
               <Droppable id="career">
                 <CategoryList title="Career" tasks={(data.career ?? []).filter(t=>plannedToday.some(p=>p.id===t.id))}
@@ -153,7 +191,7 @@ export default function Dashboard() {
                   .sort((a,b)=>(a.due_date??'').localeCompare(b.due_date??''))
                   .map(t => (
                     <li key={t.id} className="flex items-center gap-3">
-                      <CheckIconButton aria-label={t.done ? 'Mark task as not done' : 'Mark task as done'} title={t.done ? 'Mark task as not done' : 'Mark task as done'} onClick={()=>handlers.toggleTask(t.id, !t.done)} />
+                      <input className="chk" type="checkbox" checked={t.done} onChange={e=>handlers.toggleTask(t.id, e.target.checked)} />
                       <span className={t.done ? 'line-through opacity-50' : ''}>{t.title}</span>
                       <span className="ml-auto text-xs opacity-60">{t.category} · {t.due_date}</span>
                     </li>

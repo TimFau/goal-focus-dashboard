@@ -71,7 +71,8 @@ export async function GET(req: NextRequest) {
     const row = focusRows?.find(r => r.slot === i)
     if (!row) return { title: '' }
     if (row.free_text) return { title: row.free_text }
-    const found = (tasks ?? []).find(t => t.id === row.task_id)
+    const all = [...(tasks ?? []), ...(carryOver ?? [])]
+    const found = all.find(t => t.id === row.task_id)
     return { title: found?.title ?? '' }
   })
 
