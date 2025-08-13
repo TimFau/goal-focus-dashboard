@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 type FocusItem = { id?: string, title?: string }
 type Props = {
@@ -9,6 +9,7 @@ type Props = {
 
 export default function TopThree({ initial, onSet }: Props) {
   const [items, setItems] = useState<(FocusItem|null)[]>(initial)
+  useEffect(() => { setItems(initial) }, [initial])
   const update = (i: number, v: string) => {
     const next = items.slice()
     next[i] = { title: v }
@@ -18,12 +19,12 @@ export default function TopThree({ initial, onSet }: Props) {
   return (
     <div className="card p-4 mb-4">
       <div className="flex items-center justify-between mb-2">
-        <h2 className="font-semibold">Today’s Top 3</h2>
+        <h2 className="font-semibold">Most Important Tasks for the day</h2>
         <button className="btn" onClick={save}>Save</button>
       </div>
       <div className="grid gap-2">
         { [0,1,2].map(i => (
-          <input key={i} type="text" placeholder={`Top ${i+1}`} value={items[i]?.title ?? ''} onChange={e=>update(i, e.target.value)} />
+          <input key={i} type="text" placeholder={`Task ${i+1}`} value={items[i]?.title ?? ''} onChange={e=>update(i, e.target.value)} />
         )) }
       </div>
     </div>

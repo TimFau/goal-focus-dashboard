@@ -19,3 +19,8 @@ export function ageInDays(from: string, today: Date = new Date()) {
   const t = new Date(today); t.setHours(0,0,0,0)
   return Math.round((t.getTime()-a.getTime())/86400000)
 }
+
+export function fromISODateLocal(s: string) {
+  const [y, m, d] = s.split('-').map(Number)
+  return new Date(y, (m ?? 1) - 1, d ?? 1)
+}
