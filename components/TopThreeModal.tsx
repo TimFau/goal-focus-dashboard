@@ -9,22 +9,24 @@ export default function TopThreeModal({
   onClose,
   plannedToday,
   carryOver,
-  onAccept
+  onAccept,
+  selectedDate
 }: {
   open: boolean
   onClose: () => void
   plannedToday: Task[]
   carryOver: Task[]
   onAccept: (items: Array<{ title: string, task_id?: string }>) => Promise<void>
+  selectedDate: string
 }) {
   const suggestions = useMemo(() => {
-    // prioritize plannedToday, then oldest carryOver
-    const planned = [...plannedToday]
-    const carry = [...carryOver].sort((a,b)=>(a.due_date??'').localeCompare(b.due_date??''))
+    // Filter tasks for the selected date
+    const planned = plannedToday.filter(t => t.due_date === selectedDate)
+    const carry = carryOver.filter(t => t.due_date && t.due_date < selectedDate).sort((a,b)=>(a.due_date??'').localeCompare(b.due_date??''))
     const pool = [...planned, ...carry]
     const picked = pool.slice(0,3)
     return picked.map(t => ({ title: t.title, task_id: t.id }))
-  }, [plannedToday, carryOver])
+  }, [plannedToday, carryOver, selectedDate])
 
   const [draft, setDraft] = useState<Array<{ title: string, task_id?: string }>>(() => [
     suggestions[0] ?? { title: '' },
@@ -45,7 +47,7 @@ export default function TopThreeModal({
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
       <div className="w-full max-w-lg card p-4">
-        <h3 className="font-semibold mb-2">Pick your Top 3 for {toISODate()}</h3>
+        <h3 className="font-semibold mb-2">Pick your Top 3 for {selectedDate}</h3>
         <div className="grid gap-2">
           {draft.map((d, i) => (
             <input key={i} className="p-2 rounded bg-white/5 outline-none"

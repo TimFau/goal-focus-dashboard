@@ -57,7 +57,32 @@ export default function Dashboard() {
     }
   }
 
-  useEffect(() => { load().catch(()=>{}) }, [])
+  useEffect(() => { 
+    load().catch(()=>{})
+  }, [])
+  
+  // Check for URL changes periodically and on navigation events
+  useEffect(() => {
+    const checkForChanges = () => {
+      const currentDate = new URLSearchParams(window.location.search).get('date') ?? toISODate()
+      const currentView = (new URLSearchParams(window.location.search).get('view') as 'planned'|'all') || view
+      if (currentDate !== date || currentView !== view) {
+        load().catch(()=>{})
+      }
+    }
+    
+    // Check on navigation events
+    const handleNavigation = () => checkForChanges()
+    window.addEventListener('popstate', handleNavigation)
+    
+    // Also check periodically for programmatic changes
+    const interval = setInterval(checkForChanges, 500)
+    
+    return () => {
+      window.removeEventListener('popstate', handleNavigation)
+      clearInterval(interval)
+    }
+  }, [date, view])
 
   const handlers = {
     async setFocus(items: Array<{ title?: string; task_id?: string } | null>) {
@@ -111,7 +136,7 @@ export default function Dashboard() {
 
     if (target.startsWith('top3-slot-')) {
       const slotNum = Number(target.split('-').pop())
-      // Update Top 3 with this task
+      // Update Top 3 with this task and auto-save
       const current: Array<{ title?: string; task_id?: string } | null> = [0,1,2].map(i => ({ title: data.focus?.[i]?.title ?? '' }))
       current[slotNum-1] = { title: task.title, task_id: task.id }
       await handlers.setFocus(current)
@@ -142,6 +167,9 @@ export default function Dashboard() {
           initial={data.focus}
           onSet={handlers.setFocus}
           onMarkTaskDone={handlers.markTaskDone}
+          carryOverTasks={carryOver}
+          plannedTasks={data.plannedToday}
+          selectedDate={date}
         />
 
         <TopThreeModal
@@ -150,6 +178,7 @@ export default function Dashboard() {
           plannedToday={plannedToday}
           carryOver={carryOver}
           onAccept={async (items: Array<{ title: string; task_id?: string }>)=>{ await handlers.setFocus(items); }}
+          selectedDate={date}
         />
 
         {view === 'planned' ? (
