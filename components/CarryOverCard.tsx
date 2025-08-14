@@ -40,6 +40,7 @@ export default function CarryOverCard({
   const [cat, setCat] = useState<'keep'|Task['category']>('keep')
   const [showCount, setShowCount] = useState(5)
   const [initialized, setInitialized] = useState(false)
+  const [showBulkActions, setShowBulkActions] = useState(false)
 
   // Persist collapse state per day; optionally auto-open once/day if many items
   useEffect(() => {
@@ -105,108 +106,123 @@ export default function CarryOverCard({
       <div className="flex items-center gap-3">
         <h3 className="font-semibold text-violet-300">Carry Over</h3>
         <span className="text-xs opacity-70">· {items.length} {items.length===1?'item':'items'}{oldestAge>0?` (oldest ${oldestAge}d)`:''}</span>
-        <button className="btn ml-auto" onClick={()=>setExpanded(!expanded)}>{expanded?'Hide':'Show'}</button>
+        <div className="ml-auto flex items-center gap-2">
+          {expanded && (
+            <button 
+              className="btn btn-sm" 
+              onClick={()=>setShowBulkActions(!showBulkActions)}
+              title="Toggle bulk actions"
+            >
+              {showBulkActions ? 'Hide Bulk' : 'Bulk Edit'}
+            </button>
+          )}
+          <button className="btn" onClick={()=>setExpanded(!expanded)}>{expanded?'Hide':'Show'}</button>
+        </div>
       </div>
 
       {expanded && (
         <>
-          {/* Bulk actions */}
-          <div className="mt-3 space-y-3">
-            {/* Header row */}
-            <div className="flex items-center gap-3">
-              <label className="text-sm opacity-70 flex-shrink-0">
-                {anySelected ? `${idsSelected.length} selected` : 'Category:'}
-              </label>
-              <select
-                value={cat}
-                onChange={e=>setCat(e.target.value as any)}
-                title="Choose category override (default: keep existing)"
-              >
-                <option value="keep">Keep existing category</option>
-                <option value="career">Career</option>
-                <option value="langpulse">LangPulse</option>
-                <option value="health">Health</option>
-                <option value="life">Life</option>
-              </select>
-            </div>
-            
-            {/* Action buttons - grouped by function */}
-            <div className="flex flex-wrap gap-2">
-              {/* Promote */}
-              <button
-                className="btn btn-sm btn-backlog"
-                onClick={async()=>{
-                  const ids = (anySelected ? idsSelected : items.map(i=>i.id))
-                  if (cat === 'keep') {
-                    // Group by each task's current category to preserve categories while promoting
-                    const groups: Record<Task['category'], string[]> = { career: [], langpulse: [], health: [], life: [] }
-                    ids.forEach(id => {
-                      const t = items.find(it => it.id === id)
-                      if (t) groups[t.category].push(id)
-                    })
-                    for (const [groupCat, groupIds] of Object.entries(groups) as [Task['category'], string[]][]) {
-                      if (groupIds.length) {
-                        await onPromote(groupIds, groupCat, toISODate())
+          {/* Bulk actions - only show when toggled on */}
+          {showBulkActions && (
+            <div className="mt-3 space-y-3 p-3 rounded border border-white/10 bg-white/5">
+              {/* Header row */}
+              <div className="flex items-center gap-3">
+                <label className="text-sm opacity-70 flex-shrink-0">
+                  {anySelected ? `${idsSelected.length} selected` : 'Category:'}
+                </label>
+                <select
+                  value={cat}
+                  onChange={e=>setCat(e.target.value as any)}
+                  title="Choose category override (default: keep existing)"
+                >
+                  <option value="keep">Keep existing category</option>
+                  <option value="career">Career</option>
+                  <option value="langpulse">LangPulse</option>
+                  <option value="health">Health</option>
+                  <option value="life">Life</option>
+                </select>
+              </div>
+              
+              {/* Action buttons - grouped by function */}
+              <div className="flex flex-wrap gap-2">
+                {/* Promote */}
+                <button
+                  className="btn btn-sm btn-backlog"
+                  onClick={async()=>{
+                    const ids = (anySelected ? idsSelected : items.map(i=>i.id))
+                    if (cat === 'keep') {
+                      // Group by each task's current category to preserve categories while promoting
+                      const groups: Record<Task['category'], string[]> = { career: [], langpulse: [], health: [], life: [] }
+                      ids.forEach(id => {
+                        const t = items.find(it => it.id === id)
+                        if (t) groups[t.category].push(id)
+                      })
+                      for (const [groupCat, groupIds] of Object.entries(groups) as [Task['category'], string[]][]) {
+                        if (groupIds.length) {
+                          await onPromote(groupIds, groupCat, toISODate())
+                        }
                       }
+                    } else {
+                      await onPromote(ids, cat, toISODate())
                     }
-                  } else {
-                    await onPromote(ids, cat, toISODate())
-                  }
-                  setSelected({})
-                }}
-                title={cat === 'keep' ? 'Adds to today and keeps category' : 'Adds to today and changes category'}
-              >
-                Add to Today (Backlog)
-              </button>
+                    setSelected({})
+                  }}
+                  title={cat === 'keep' ? 'Adds to today and keeps category' : 'Adds to today and changes category'}
+                >
+                  Add to Today (Backlog)
+                </button>
 
-              {/* Pin to Top 3 */}
-              <button
-                className="btn btn-sm btn-top3"
-                onClick={async()=>{
-                  const ids = (anySelected ? idsSelected : items.map(i=>i.id))
-                  await onAddToTop3(ids)
-                  setSelected({})
-                }}
-                title="Add to today’s Top 3"
-              >
-                Pin to Top 3
-              </button>
-              
-              {/* Snooze group */}
-              <div className="flex gap-1">
-                <button className="btn btn-sm" onClick={()=>quickSnooze(1)}>Tomorrow</button>
-                <button className="btn btn-sm" onClick={()=>quickSnooze(3)}>+3d</button>
-                <button className="btn btn-sm" onClick={snoozeNextMon}>Next Mon</button>
+                {/* Pin to Top 3 */}
+                <button
+                  className="btn btn-sm btn-top3"
+                  onClick={async()=>{
+                    const ids = (anySelected ? idsSelected : items.map(i=>i.id))
+                    await onAddToTop3(ids)
+                    setSelected({})
+                  }}
+                  title="Add to today's Top 3"
+                >
+                  Pin to Top 3
+                </button>
+                
+                {/* Snooze group */}
+                <div className="flex gap-1">
+                  <button className="btn btn-sm" onClick={()=>quickSnooze(1)}>Tomorrow</button>
+                  <button className="btn btn-sm" onClick={()=>quickSnooze(3)}>+3d</button>
+                  <button className="btn btn-sm" onClick={snoozeNextMon}>Next Mon</button>
+                </div>
+                
+                {/* Complete/Delete */}
+                <div className="flex gap-1">
+                  <button 
+                    className="btn btn-sm" 
+                    onClick={async()=>{ await onComplete(anySelected?idsSelected:items.map(i=>i.id)); setSelected({}) }}
+                  >
+                    Complete
+                  </button>
+                  <button 
+                    className="btn btn-sm" 
+                    onClick={async()=>{ await onDelete(anySelected?idsSelected:items.map(i=>i.id)); setSelected({}) }}
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
-              
-              {/* Complete/Delete */}
-              <div className="flex gap-1">
-                <button 
-                  className="btn btn-sm" 
-                  onClick={async()=>{ await onComplete(anySelected?idsSelected:items.map(i=>i.id)); setSelected({}) }}
-                >
-                  Complete
-                </button>
-                <button 
-                  className="btn btn-sm" 
-                  onClick={async()=>{ await onDelete(anySelected?idsSelected:items.map(i=>i.id)); setSelected({}) }}
-                >
-                  Delete
-                </button>
+              <div className="text-xs opacity-60">
+                "Add to Today (Backlog)" does not add to Top 3
               </div>
             </div>
-            <div className="text-xs opacity-60">
-              “Add to Today (Backlog)” does not add to Top 3
-            </div>
-          </div>
+          )}
 
           {/* List (top N + show more) */}
           <ul className="mt-3 space-y-1">
             {top[0].map((t) => (
               <li key={t.id} className="p-2 rounded hover:bg-white/5">
-                {/* First row: checkbox, task content, Pin to Top 3 */}
+                {/* First row: checkbox (only in bulk mode), task content, Pin to Top 3 */}
                 <div className="flex items-center gap-3">
-                  <input type="checkbox" className="chk" checked={!!selected[t.id]} onChange={e=>setSelected(s=>({...s,[t.id]:e.target.checked}))} />
+                  {showBulkActions && (
+                    <input type="checkbox" className="chk" checked={!!selected[t.id]} onChange={e=>setSelected(s=>({...s,[t.id]:e.target.checked}))} />
+                  )}
                   {/* Draggable area with inline completion icon and title */}
                   <DraggableItem task={t} left={<CheckIconButton onClick={async (e)=>{ e.stopPropagation(); await onComplete([t.id]) }} />} />
                   <button 
