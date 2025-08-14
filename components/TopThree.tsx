@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { useDroppable } from '@dnd-kit/core'
-import { toISODate, fromISODateLocal } from '@/lib/date'
+import { toISODate, fromISODateLocal, addDays } from '@/lib/date'
 
 type FocusItem = { title?: string; task_id?: string } | null
 type Task = { id: string; title: string; done: boolean; low_energy: boolean; category: 'career'|'langpulse'|'health'|'life'; due_date?: string }
@@ -100,7 +100,9 @@ function Slot({
   plannedTasks,
   onSelectTask,
   onSaveSlot,
-  selectedDate
+  selectedDate,
+  onDemoteToBacklog,
+  onDemoteToCarry
 }: {
   id: string
   value: FocusItem
@@ -111,6 +113,8 @@ function Slot({
   onSelectTask: (slot: number, task: { title: string, task_id: string }) => void
   onSaveSlot: (slot: number) => Promise<void>
   selectedDate: string
+  onDemoteToBacklog: (slot: number) => Promise<void>
+  onDemoteToCarry: (slot: number) => Promise<void>
 }) {
   const slotNum = Number(id.split('-').pop())
   const { isOver, setNodeRef } = useDroppable({ id })
@@ -151,7 +155,7 @@ function Slot({
             onKeyPress={handleKeyPress}
           />
           <button
-            className="btn text-sm py-1 px-2"
+            className="btn btn-sm btn-top3"
             onClick={() => setShowSelector(true)}
             title="Pick from tasks"
           >
@@ -160,7 +164,7 @@ function Slot({
           {/* Show save button only for manual entries (no task_id) */}
           {value?.title && !value?.task_id && (
             <button
-              className="btn text-sm py-1 px-2"
+              className="btn btn-sm btn-top3"
               onClick={handleSave}
               disabled={isSaving}
               title="Save this entry"
@@ -179,6 +183,13 @@ function Slot({
         onSelect={(task) => onSelectTask(slotNum, task)}
         selectedDate={selectedDate}
       />
+      {/* Demote actions (only meaningful when linked to a task) */}
+      {value?.task_id && (
+        <div className="mt-2 flex gap-2">
+          <button className="btn btn-sm btn-backlog" title="Remove from Top 3 and keep for today" onClick={()=>onDemoteToBacklog(slotNum)}>To Today's List</button>
+          <button className="btn btn-sm" title="Remove from Top 3 and move out of today" onClick={()=>onDemoteToCarry(slotNum)}>To Carry Over</button>
+        </div>
+      )}
     </>
   )
 }
@@ -189,18 +200,22 @@ export default function TopThree({
   onMarkTaskDone,
   carryOverTasks = [],
   plannedTasks = [],
-  selectedDate
+  selectedDate,
+  onPromote,
+  onSnooze
 }: {
-  initial: { title: string }[]
+  initial: FocusItem[]
   onSet: (items: FocusItem[]) => Promise<void>
   onMarkTaskDone: (taskId: string) => Promise<void>
   carryOverTasks?: Task[]
   plannedTasks?: Task[]
   selectedDate: string
+  onPromote: (ids: string[], category: Task['category'], date: string) => Promise<void>
+  onSnooze: (ids: string[], date: string) => Promise<void>
 }) {
-  const [items, setItems] = useState<FocusItem[]>(() => [0,1,2].map(i => ({ title: initial?.[i]?.title ?? '' })))
+  const [items, setItems] = useState<FocusItem[]>(() => [initial?.[0] ?? null, initial?.[1] ?? null, initial?.[2] ?? null])
   useEffect(() => {
-    setItems([0,1,2].map(i => ({ title: initial?.[i]?.title ?? '' })))
+    setItems([initial?.[0] ?? null, initial?.[1] ?? null, initial?.[2] ?? null])
   }, [initial])
 
   const setTitle = (slot: number, title: string) => {
@@ -240,10 +255,32 @@ export default function TopThree({
     await onSet(items.map((it, i) => i===slot-1 ? (items[slot-1]?.task_id ? it : null) : it))
   }
 
+  const demoteToBacklog = async (slot: number) => {
+    const item = items[slot-1]
+    if (!item?.task_id) return
+    // Find category from known task lists
+    const all = [...plannedTasks, ...carryOverTasks]
+    const found = all.find(t => t.id === item.task_id)
+    const category = found?.category || 'career'
+    await onPromote([item.task_id], category as any, selectedDate)
+    // clear slot
+    const next = items.map((it, i) => i===slot-1 ? null : it)
+    await onSet(next)
+  }
+
+  const demoteToCarry = async (slot: number) => {
+    const item = items[slot-1]
+    if (!item?.task_id) return
+    const y = toISODate(addDays(new Date(selectedDate), -1))
+    await onSnooze([item.task_id], y)
+    const next = items.map((it, i) => i===slot-1 ? null : it)
+    await onSet(next)
+  }
+ 
   return (
-    <div className="card p-4">
+    <div className="card card-top3 accent-top3 p-4">
       <div className="mb-3">
-        <h3 className="font-semibold">{getDateLabel(selectedDate)}</h3>
+        <h3 className="font-semibold text-amber-300">{getDateLabel(selectedDate)}</h3>
       </div>
       <div className="grid gap-3">
         {[1,2,3].map(i => (
@@ -258,6 +295,8 @@ export default function TopThree({
             onSelectTask={selectTask}
             onSaveSlot={saveSlot}
             selectedDate={selectedDate}
+            onDemoteToBacklog={demoteToBacklog}
+            onDemoteToCarry={demoteToCarry}
           />
         ))}
       </div>

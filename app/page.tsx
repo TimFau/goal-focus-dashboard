@@ -12,7 +12,7 @@ import type { DragEndEvent } from '@dnd-kit/core'
 
 type Task = { id: string; title: string; done: boolean; low_energy: boolean; category: 'career'|'langpulse'|'health'|'life'; due_date?: string }
 type Data = {
-  focus: { title: string }[]
+  focus: Array<{ title?: string; task_id?: string } | null>
   view: 'planned' | 'all'
   today: string
   plannedToday: Task[]
@@ -120,6 +120,40 @@ export default function Dashboard() {
       history.replaceState(null, '', '/?'+q.toString())
       setView(v)
       fetchDashboard(date, v).then(setData).catch(()=>{})
+    },
+    async addToTop3(ids: string[]) {
+      if (!data) return
+      // Build a lookup of all tasks by id (planned + carryOver + categories)
+      const allTasks: Task[] = [
+        ...(data.plannedToday ?? []),
+        ...(data.carryOver ?? []),
+        ...(data.career ?? []),
+        ...(data.langpulse ?? []),
+        ...(data.health ?? []),
+        ...(data.life ?? []),
+      ]
+      const byId: Record<string, Task> = {}
+      allTasks.forEach(t => { byId[t.id] = t })
+
+      // Start with current focus from server (preserve task links)
+      const current: Array<{ title?: string; task_id?: string } | null> = [0,1,2].map(i => ({
+        title: (data.focus?.[i] as any)?.title ?? '',
+        task_id: (data.focus?.[i] as any)?.task_id
+      }))
+
+      // Fill available slots with selected tasks (in order), without overwriting existing non-empty slots
+      let slotIndex = 0
+      for (const id of ids) {
+        // Find next empty slot
+        while (slotIndex < 3 && (current[slotIndex]?.title && current[slotIndex]?.title !== '')) slotIndex++
+        if (slotIndex >= 3) break
+        const task = byId[id]
+        if (task) {
+          current[slotIndex] = { title: task.title, task_id: task.id }
+          slotIndex++
+        }
+      }
+      await handlers.setFocus(current)
     }
   }
 
@@ -136,8 +170,11 @@ export default function Dashboard() {
 
     if (target.startsWith('top3-slot-')) {
       const slotNum = Number(target.split('-').pop())
-      // Update Top 3 with this task and auto-save
-      const current: Array<{ title?: string; task_id?: string } | null> = [0,1,2].map(i => ({ title: data.focus?.[i]?.title ?? '' }))
+      // Update Top 3 with this task and auto-save, preserving existing task links
+      const current: Array<{ title?: string; task_id?: string } | null> = [0,1,2].map(i => ({
+        title: (data.focus?.[i] as any)?.title ?? '',
+        task_id: (data.focus?.[i] as any)?.task_id
+      }))
       current[slotNum-1] = { title: task.title, task_id: task.id }
       await handlers.setFocus(current)
       return
@@ -170,6 +207,8 @@ export default function Dashboard() {
           carryOverTasks={carryOver}
           plannedTasks={data.plannedToday}
           selectedDate={date}
+          onPromote={handlers.promote}
+          onSnooze={handlers.snooze}
         />
 
         <TopThreeModal
@@ -183,28 +222,31 @@ export default function Dashboard() {
 
         {view === 'planned' ? (
           <>
-            <CarryOverCard
-              items={carryOver}
-              onPromote={handlers.promote}
-              onSnooze={handlers.snooze}
-              onDelete={handlers.del}
-              onComplete={async (ids)=>{ await fetch('/api/tasks/bulk', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ids, op:'complete' }) }); await load() }}
-            />
+            <section className="space-y-3">
+              <CarryOverCard
+                items={carryOver}
+                onPromote={handlers.promote}
+                onSnooze={handlers.snooze}
+                onDelete={handlers.del}
+                onComplete={async (ids)=>{ await fetch('/api/tasks/bulk', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ids, op:'complete' }) }); await load() }}
+                onAddToTop3={handlers.addToTop3}
+              />
+            </section>
             <div className="grid gap-4">
               <Droppable id="career">
-                <CategoryList title="Career" tasks={(data.career ?? []).filter(t=>plannedToday.some(p=>p.id===t.id))}
+                <CategoryList title="Career" accent="backlog" tasks={(data.career ?? []).filter(t=>plannedToday.some(p=>p.id===t.id))}
                   energy={energy} onToggle={handlers.toggleTask} onAdd={(t)=>handlers.addTask('career', t)} />
               </Droppable>
               <Droppable id="langpulse">
-                <CategoryList title="LangPulse" tasks={(data.langpulse ?? []).filter(t=>plannedToday.some(p=>p.id===t.id))}
+                <CategoryList title="LangPulse" accent="backlog" tasks={(data.langpulse ?? []).filter(t=>plannedToday.some(p=>p.id===t.id))}
                   energy={energy} onToggle={handlers.toggleTask} onAdd={(t)=>handlers.addTask('langpulse', t)} />
               </Droppable>
               <Droppable id="health">
-                <CategoryList title="Health" tasks={(data.health ?? []).filter(t=>plannedToday.some(p=>p.id===t.id))}
+                <CategoryList title="Health" accent="backlog" tasks={(data.health ?? []).filter(t=>plannedToday.some(p=>p.id===t.id))}
                   energy={energy} onToggle={handlers.toggleTask} onAdd={(t)=>handlers.addTask('health', t)} />
               </Droppable>
               <Droppable id="life">
-                <CategoryList title="Life/Wedding" tasks={(data.life ?? []).filter(t=>plannedToday.some(p=>p.id===t.id))}
+                <CategoryList title="Life/Wedding" accent="backlog" tasks={(data.life ?? []).filter(t=>plannedToday.some(p=>p.id===t.id))}
                   energy={energy} onToggle={handlers.toggleTask} onAdd={(t)=>handlers.addTask('life', t)} />
               </Droppable>
             </div>

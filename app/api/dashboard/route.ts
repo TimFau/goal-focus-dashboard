@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
     if (row.free_text) return { title: row.free_text }
     const all = [...(tasks ?? []), ...(carryOver ?? [])]
     const found = all.find(t => t.id === row.task_id)
-    return { title: found?.title ?? '' }
+    return { title: found?.title ?? '', task_id: row.task_id ?? undefined }
   })
 
   return NextResponse.json({

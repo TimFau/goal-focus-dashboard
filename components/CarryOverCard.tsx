@@ -26,16 +26,18 @@ export default function CarryOverCard({
   onSnooze,      // (ids, date) => Promise<void)
   onDelete,      // (ids) => Promise<void>
   onComplete,    // (ids) => Promise<void>
+  onAddToTop3,   // (ids) => Promise<void>
 }: {
   items: Task[]
   onPromote: (ids: string[], category: Task['category'], date: string) => Promise<void>
   onSnooze: (ids: string[], date: string) => Promise<void>
   onDelete: (ids: string[]) => Promise<void>
   onComplete: (ids: string[]) => Promise<void>
+  onAddToTop3: (ids: string[]) => Promise<void>
 }) {
   const [expanded, setExpanded] = useState<boolean>(false)
   const [selected, setSelected] = useState<Record<string, boolean>>({})
-  const [cat, setCat] = useState<Task['category']>('career')
+  const [cat, setCat] = useState<'keep'|Task['category']>('keep')
   const [showCount, setShowCount] = useState(5)
   const [initialized, setInitialized] = useState(false)
 
@@ -99,53 +101,139 @@ export default function CarryOverCard({
   }
 
   return (
-    <div className="card p-4">
+    <div className="card card-carry accent-carry p-4">
       <div className="flex items-center gap-3">
-        <h3 className="font-semibold">Carry Over</h3>
+        <h3 className="font-semibold text-violet-300">Carry Over</h3>
         <span className="text-xs opacity-70">· {items.length} {items.length===1?'item':'items'}{oldestAge>0?` (oldest ${oldestAge}d)`:''}</span>
         <button className="btn ml-auto" onClick={()=>setExpanded(!expanded)}>{expanded?'Hide':'Show'}</button>
       </div>
 
       {expanded && (
         <>
-          {/* Bulk bar */}
-          <div className="mt-3 flex items-center gap-2">
-            <label className="text-sm opacity-70">{anySelected ? `${idsSelected.length} selected` : 'Bulk actions:'}</label>
-            <select className="max-w-[160px]" value={cat} onChange={e=>setCat(e.target.value as any)}>
-              <option value="career">Career</option>
-              <option value="langpulse">LangPulse</option>
-              <option value="health">Health</option>
-              <option value="life">Life</option>
-            </select>
-            <button className="btn" onClick={async()=>{ await onPromote(anySelected?idsSelected:items.map(i=>i.id), cat, toISODate()); setSelected({}) }}>Promote to Today</button>
-            <button className="btn" onClick={()=>quickSnooze(1)}>Snooze → Tomorrow</button>
-            <button className="btn" onClick={()=>quickSnooze(3)}>Snooze → +3d</button>
-            <button className="btn" onClick={snoozeNextMon}>Snooze → Next Mon</button>
-            <button className="btn" onClick={async()=>{ await onComplete(anySelected?idsSelected:items.map(i=>i.id)); setSelected({}) }}>Complete</button>
-            <button className="btn" onClick={async()=>{ await onDelete(anySelected?idsSelected:items.map(i=>i.id)); setSelected({}) }}>Delete</button>
+          {/* Bulk actions */}
+          <div className="mt-3 space-y-3">
+            {/* Header row */}
+            <div className="flex items-center gap-3">
+              <label className="text-sm opacity-70 flex-shrink-0">
+                {anySelected ? `${idsSelected.length} selected` : 'Category:'}
+              </label>
+              <select
+                value={cat}
+                onChange={e=>setCat(e.target.value as any)}
+                title="Choose category override (default: keep existing)"
+              >
+                <option value="keep">Keep existing category</option>
+                <option value="career">Career</option>
+                <option value="langpulse">LangPulse</option>
+                <option value="health">Health</option>
+                <option value="life">Life</option>
+              </select>
+            </div>
+            
+            {/* Action buttons - grouped by function */}
+            <div className="flex flex-wrap gap-2">
+              {/* Promote */}
+              <button
+                className="btn btn-sm btn-backlog"
+                onClick={async()=>{
+                  const ids = (anySelected ? idsSelected : items.map(i=>i.id))
+                  if (cat === 'keep') {
+                    // Group by each task's current category to preserve categories while promoting
+                    const groups: Record<Task['category'], string[]> = { career: [], langpulse: [], health: [], life: [] }
+                    ids.forEach(id => {
+                      const t = items.find(it => it.id === id)
+                      if (t) groups[t.category].push(id)
+                    })
+                    for (const [groupCat, groupIds] of Object.entries(groups) as [Task['category'], string[]][]) {
+                      if (groupIds.length) {
+                        await onPromote(groupIds, groupCat, toISODate())
+                      }
+                    }
+                  } else {
+                    await onPromote(ids, cat, toISODate())
+                  }
+                  setSelected({})
+                }}
+                title={cat === 'keep' ? 'Adds to today and keeps category' : 'Adds to today and changes category'}
+              >
+                Add to Today (Backlog)
+              </button>
+
+              {/* Pin to Top 3 */}
+              <button
+                className="btn btn-sm btn-top3"
+                onClick={async()=>{
+                  const ids = (anySelected ? idsSelected : items.map(i=>i.id))
+                  await onAddToTop3(ids)
+                  setSelected({})
+                }}
+                title="Add to today’s Top 3"
+              >
+                Pin to Top 3
+              </button>
+              
+              {/* Snooze group */}
+              <div className="flex gap-1">
+                <button className="btn btn-sm" onClick={()=>quickSnooze(1)}>Tomorrow</button>
+                <button className="btn btn-sm" onClick={()=>quickSnooze(3)}>+3d</button>
+                <button className="btn btn-sm" onClick={snoozeNextMon}>Next Mon</button>
+              </div>
+              
+              {/* Complete/Delete */}
+              <div className="flex gap-1">
+                <button 
+                  className="btn btn-sm" 
+                  onClick={async()=>{ await onComplete(anySelected?idsSelected:items.map(i=>i.id)); setSelected({}) }}
+                >
+                  Complete
+                </button>
+                <button 
+                  className="btn btn-sm" 
+                  onClick={async()=>{ await onDelete(anySelected?idsSelected:items.map(i=>i.id)); setSelected({}) }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+            <div className="text-xs opacity-60">
+              “Add to Today (Backlog)” does not add to Top 3
+            </div>
           </div>
 
           {/* List (top N + show more) */}
           <ul className="mt-3 space-y-1">
             {top[0].map((t) => (
-              <li key={t.id} className="flex items-center gap-3 p-2 rounded hover:bg-white/5">
-                <input type="checkbox" className="chk" checked={!!selected[t.id]} onChange={e=>setSelected(s=>({...s,[t.id]:e.target.checked}))} />
-                {/* Draggable area with inline completion icon and title */}
-                <DraggableItem task={t} left={<CheckIconButton onClick={async (e)=>{ e.stopPropagation(); await onComplete([t.id]) }} />} />
-                <span className="text-xs opacity-60">{t.category} · {t.due_date}</span>
-                {/* Inline quick actions */}
-                <div className="ml-auto flex items-center gap-2">
-                  <select className="text-sm" onChange={async e=>{
-                    await onPromote([t.id], e.target.value as any, toISODate()); e.currentTarget.selectedIndex = 0
-                  }}>
-                    <option value="">Promote…</option>
-                    <option value="career">→ Career</option>
-                    <option value="langpulse">→ LangPulse</option>
-                    <option value="health">→ Health</option>
-                    <option value="life">→ Life</option>
-                  </select>
-                  <button className="btn" onClick={()=>onSnooze([t.id], toISODate(addDays(new Date(),1)))}>Snooze</button>
-                  <button className="btn" onClick={()=>onDelete([t.id])}>Delete</button>
+              <li key={t.id} className="p-2 rounded hover:bg-white/5">
+                {/* First row: checkbox, task content, Pin to Top 3 */}
+                <div className="flex items-center gap-3">
+                  <input type="checkbox" className="chk" checked={!!selected[t.id]} onChange={e=>setSelected(s=>({...s,[t.id]:e.target.checked}))} />
+                  {/* Draggable area with inline completion icon and title */}
+                  <DraggableItem task={t} left={<CheckIconButton onClick={async (e)=>{ e.stopPropagation(); await onComplete([t.id]) }} />} />
+                  <button 
+                    className="btn btn-sm btn-top3 ml-auto" 
+                    onClick={()=>onAddToTop3([t.id])}
+                    title="Pin to Top 3"
+                  >
+                    Pin to Top 3
+                  </button>
+                </div>
+                
+                {/* Second row: category/date and other actions */}
+                <div className="mt-2 flex items-center justify-between text-xs opacity-60">
+                  <span>{t.category} · {t.due_date}</span>
+                  <div className="flex items-center gap-2">
+                    <select className="text-sm" onChange={async e=>{
+                      await onPromote([t.id], e.target.value as any, toISODate()); e.currentTarget.selectedIndex = 0
+                    }}>
+                      <option value="">Promote…</option>
+                      <option value="career">→ Career</option>
+                      <option value="langpulse">→ LangPulse</option>
+                      <option value="health">→ Health</option>
+                      <option value="life">→ Life</option>
+                    </select>
+                    <button className="btn btn-sm" onClick={()=>onSnooze([t.id], toISODate(addDays(new Date(),1)))}>Snooze</button>
+                    <button className="btn btn-sm" onClick={()=>onDelete([t.id])}>Delete</button>
+                  </div>
                 </div>
               </li>
             ))}

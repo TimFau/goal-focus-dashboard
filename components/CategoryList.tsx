@@ -6,11 +6,12 @@ type Props = {
   onToggle: (id: string, done: boolean) => Promise<void>
   onAdd: (title: string) => Promise<void>
   energy: 'all'|'low'
+  accent?: 'backlog' | 'default'
 }
 import { useState, useMemo } from 'react'
 import { CheckIconButton } from '@/components/IconButton'
 
-export default function CategoryList({title, tasks, onToggle, onAdd, energy}: Props) {
+export default function CategoryList({title, tasks, onToggle, onAdd, energy, accent = 'default'}: Props) {
   const [adding, setAdding] = useState('')
   const filtered = useMemo(()=> energy==='all' ? tasks : tasks.filter(t=>t.low_energy), [tasks, energy])
   const add = async () => {
@@ -19,7 +20,7 @@ export default function CategoryList({title, tasks, onToggle, onAdd, energy}: Pr
     setAdding('')
   }
   return (
-    <div className="card p-4">
+    <div className={`card p-4 ${accent==='backlog' ? 'card-backlog accent-backlog' : ''}`}>
       <h3 className="font-semibold mb-2">{title}</h3>
       <ul className="space-y-2">
         {filtered.map(t => (
@@ -32,7 +33,7 @@ export default function CategoryList({title, tasks, onToggle, onAdd, energy}: Pr
       </ul>
       <div className="mt-3 flex gap-2">
         <input type="text" placeholder="Quick add…" value={adding} onChange={e=>setAdding(e.target.value)} />
-        <button className="btn" onClick={add}>Add</button>
+        <button className="btn btn-backlog" onClick={add}>Add</button>
       </div>
     </div>
   )
