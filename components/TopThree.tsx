@@ -120,6 +120,7 @@ function Slot({
   const { isOver, setNodeRef } = useDroppable({ id })
   const [showSelector, setShowSelector] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [expanded, setExpanded] = useState(false)
   
   const handleSave = async () => {
     setIsSaving(true)
@@ -154,25 +155,55 @@ function Slot({
             onChange={e=>onChange(slotNum, e.target.value)}
             onKeyPress={handleKeyPress}
           />
-          <button
-            className="btn btn-sm btn-top3"
-            onClick={() => setShowSelector(true)}
-            title="Pick from tasks"
-          >
-            Select
-          </button>
-          {/* Show save button only for manual entries (no task_id) */}
-          {value?.title && !value?.task_id && (
+          {/* Show select button for empty slots or save button for manual entries */}
+          {!value?.task_id && (
+            <>
+              {value?.title ? (
+                <button
+                  className="btn btn-sm btn-top3"
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  title="Save this entry"
+                >
+                  {isSaving ? 'Saving...' : 'Save'}
+                </button>
+              ) : (
+                <button
+                  className="btn btn-sm btn-top3"
+                  onClick={() => setShowSelector(true)}
+                  title="Pick from tasks"
+                >
+                  Select
+                </button>
+              )}
+            </>
+          )}
+          {/* Show expand arrow when there's a linked task */}
+          {value?.task_id && (
             <button
-              className="btn btn-sm btn-top3"
-              onClick={handleSave}
-              disabled={isSaving}
-              title="Save this entry"
+              className="btn btn-sm p-1"
+              onClick={() => setExpanded(!expanded)}
+              title="More actions"
             >
-              {isSaving ? 'Saving...' : 'Save'}
+              {expanded ? '▲' : '▼'}
             </button>
           )}
         </div>
+        
+        {/* Expandable actions area - only for linked tasks */}
+        {expanded && value?.task_id && (
+          <div className="mt-3 flex gap-2 pt-2 border-t border-white/10">
+            <button
+              className="btn btn-sm btn-top3"
+              onClick={() => setShowSelector(true)}
+              title="Pick from tasks"
+            >
+              Change
+            </button>
+            <button className="btn btn-sm btn-backlog" title="Remove from Top 3 and keep for today" onClick={()=>onDemoteToBacklog(slotNum)}>To Today's List</button>
+            <button className="btn btn-sm" title="Remove from Top 3 and move out of today" onClick={()=>onDemoteToCarry(slotNum)}>To Carry Over</button>
+          </div>
+        )}
       </div>
       
       <TaskSelector
@@ -183,13 +214,6 @@ function Slot({
         onSelect={(task) => onSelectTask(slotNum, task)}
         selectedDate={selectedDate}
       />
-      {/* Demote actions (only meaningful when linked to a task) */}
-      {value?.task_id && (
-        <div className="mt-2 flex gap-2">
-          <button className="btn btn-sm btn-backlog" title="Remove from Top 3 and keep for today" onClick={()=>onDemoteToBacklog(slotNum)}>To Today's List</button>
-          <button className="btn btn-sm" title="Remove from Top 3 and move out of today" onClick={()=>onDemoteToCarry(slotNum)}>To Carry Over</button>
-        </div>
-      )}
     </>
   )
 }
