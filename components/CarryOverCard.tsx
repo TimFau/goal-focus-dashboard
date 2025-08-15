@@ -217,38 +217,65 @@ export default function CarryOverCard({
           {/* List (top N + show more) */}
           <ul className="mt-3 space-y-1">
             {top[0].map((t) => (
-              <li key={t.id} className="p-2 rounded hover:bg-white/5">
-                {/* First row: checkbox (only in bulk mode), task content, Pin to Top 3 */}
-                <div className="flex items-center gap-3">
-                  {showBulkActions && (
-                    <input type="checkbox" className="chk" checked={!!selected[t.id]} onChange={e=>setSelected(s=>({...s,[t.id]:e.target.checked}))} />
-                  )}
-                  {/* Draggable area with inline completion icon and title */}
-                  <DraggableItem task={t} left={<CheckIconButton onClick={async (e)=>{ e.stopPropagation(); await onComplete([t.id]) }} />} />
-                  <button 
-                    className="btn btn-sm btn-top3 ml-auto" 
-                    onClick={()=>onAddToTop3([t.id])}
-                    title="Pin to Top 3"
-                  >
-                    Pin to Top 3
-                  </button>
-                </div>
-                
-                {/* Second row: category/date and other actions */}
-                <div className="mt-2 flex items-center justify-between text-xs opacity-60">
-                  <span>{t.category} · {t.due_date}</span>
-                  <div className="flex items-center gap-2">
-                    <select className="text-sm" onChange={async e=>{
-                      await onPromote([t.id], e.target.value as any, toISODate()); e.currentTarget.selectedIndex = 0
-                    }}>
-                      <option value="">Promote…</option>
+              <li key={t.id} className="p-3 rounded border border-white/5 hover:border-white/10 hover:bg-white/5">
+                {/* Responsive layout that wraps actions when needed */}
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Left: Selection (bulk mode) + Task info */}
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    {showBulkActions && (
+                      <input type="checkbox" className="chk flex-shrink-0" checked={!!selected[t.id]} onChange={e=>setSelected(s=>({...s,[t.id]:e.target.checked}))} />
+                    )}
+                    {/* Task with completion button and metadata */}
+                    <div className="flex-1 min-w-0">
+                      <DraggableItem task={t} left={<CheckIconButton onClick={async (e)=>{ e.stopPropagation(); await onComplete([t.id]) }} />} />
+                      <div className="text-xs opacity-60 mt-1 ml-6">{t.category} · {t.due_date}</div>
+                    </div>
+                  </div>
+                  
+                  {/* Right: Action buttons grouped by priority - will wrap on small screens */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {/* Primary actions - what users come here to do */}
+                    <button 
+                      className="btn btn-sm btn-top3 flex items-center gap-1" 
+                      onClick={()=>onAddToTop3([t.id])}
+                      title="Pin to Top 3"
+                    >
+                      <span className="text-lg leading-none">📌</span>
+                      <span className="hidden sm:inline" style={{ whiteSpace: 'nowrap' }}>Top 3</span>
+                    </button>
+                    <select 
+                      className="btn btn-sm btn-backlog text-sm min-w-0" 
+                      onChange={async e=>{
+                        await onPromote([t.id], e.target.value as any, toISODate()); 
+                        e.currentTarget.selectedIndex = 0
+                      }}
+                      title="Add to today's backlog"
+                    >
+                      <option value="">Add to Today</option>
                       <option value="career">→ Career</option>
                       <option value="langpulse">→ LangPulse</option>
                       <option value="health">→ Health</option>
                       <option value="life">→ Life</option>
                     </select>
-                    <button className="btn btn-sm" onClick={()=>onSnooze([t.id], toISODate(addDays(new Date(),1)))}>Snooze</button>
-                    <button className="btn btn-sm" onClick={()=>onDelete([t.id])}>Delete</button>
+                    
+                    {/* Secondary actions - management */}
+                    <div className="flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity">
+                      <button 
+                        className="btn btn-sm px-2 flex items-center gap-1" 
+                        onClick={()=>onSnooze([t.id], toISODate(addDays(new Date(),1)))}
+                        title="Snooze until tomorrow"
+                      >
+                        <span className="text-sm">⏰</span>
+                        <span className="hidden sm:inline text-xs">Snooze</span>
+                      </button>
+                      <button 
+                        className="btn btn-sm px-2 text-red-400 hover:text-red-300" 
+                        onClick={()=>onDelete([t.id])}
+                        title="Delete task"
+                      >
+                        ×
+                      </button>
+                    </div>
                   </div>
                 </div>
               </li>
