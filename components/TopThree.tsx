@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import { toISODate, fromISODateLocal, addDays } from '@/lib/date'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 
 type FocusItem = { title?: string; task_id?: string } | null
 type Task = { id: string; title: string; done: boolean; low_energy: boolean; category: 'career'|'langpulse'|'health'|'life'; due_date?: string }
@@ -185,7 +187,11 @@ function Slot({
               onClick={() => setExpanded(!expanded)}
               title="More actions"
             >
-              {expanded ? '▲' : '▼'}
+              {expanded ? (
+                <ExpandLessIcon sx={{ fontSize: 16 }} />
+              ) : (
+                <ExpandMoreIcon sx={{ fontSize: 16 }} />
+              )}
             </button>
           )}
         </div>

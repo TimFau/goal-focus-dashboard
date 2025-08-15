@@ -1,5 +1,6 @@
 'use client'
 import { ButtonHTMLAttributes, forwardRef } from 'react'
+import CheckIcon from '@mui/icons-material/Check'
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'default' | 'success' | 'danger'
@@ -30,6 +31,8 @@ export const IconButton = forwardRef<HTMLButtonElement, Props>(function IconButt
 export function CheckIconButton(props: Omit<Props, 'children'> & { label?: string }) {
   const { label = 'Mark task as done and remove from Carry Over', ...rest } = props
   return (
-    <IconButton aria-label={label} title={label} variant="success" {...rest}>✓</IconButton>
+    <IconButton aria-label={label} title={label} variant="success" {...rest}>
+      <CheckIcon sx={{ fontSize: 16 }} />
+    </IconButton>
   )
 } 

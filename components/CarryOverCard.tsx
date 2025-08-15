@@ -6,6 +6,15 @@ import { addDays, nextMonday, toISODate, ageInDays } from '@/lib/date'
 type Task = { id: string; title: string; done: boolean; low_energy: boolean; category: 'career'|'langpulse'|'health'|'life'; due_date?: string }
 
 import { CheckIconButton } from '@/components/IconButton'
+import SnoozeIcon from '@mui/icons-material/Snooze'
+import PushPinIcon from '@mui/icons-material/PushPin'
+import DeleteIcon from '@mui/icons-material/Delete'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import ExpandLessIcon from '@mui/icons-material/ExpandLess'
+import EditIcon from '@mui/icons-material/Edit'
+import AddIcon from '@mui/icons-material/Add'
+import TodayIcon from '@mui/icons-material/Today'
+import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 
 function DraggableItem({ task, left }: { task: Task; left: React.ReactNode }) {
   const { attributes, listeners, setNodeRef, isDragging, transform } = useDraggable({ id: task.id, data: { task } })
@@ -109,14 +118,27 @@ export default function CarryOverCard({
         <div className="ml-auto flex items-center gap-2">
           {expanded && (
             <button 
-              className="btn btn-sm" 
+              className="btn btn-sm flex items-center gap-1" 
               onClick={()=>setShowBulkActions(!showBulkActions)}
               title="Toggle bulk actions"
             >
+              <EditIcon sx={{ fontSize: 16 }} />
               {showBulkActions ? 'Hide Bulk' : 'Bulk Edit'}
             </button>
           )}
-          <button className="btn" onClick={()=>setExpanded(!expanded)}>{expanded?'Hide':'Show'}</button>
+          <button className="btn flex items-center gap-1" onClick={()=>setExpanded(!expanded)}>
+            {expanded ? (
+              <>
+                <ExpandLessIcon sx={{ fontSize: 18 }} />
+                Hide
+              </>
+            ) : (
+              <>
+                <ExpandMoreIcon sx={{ fontSize: 18 }} />
+                Show
+              </>
+            )}
+          </button>
         </div>
       </div>
 
@@ -147,7 +169,7 @@ export default function CarryOverCard({
               <div className="flex flex-wrap gap-2">
                 {/* Promote */}
                 <button
-                  className="btn btn-sm btn-backlog"
+                  className="btn btn-sm btn-backlog flex items-center gap-1"
                   onClick={async()=>{
                     const ids = (anySelected ? idsSelected : items.map(i=>i.id))
                     if (cat === 'keep') {
@@ -169,12 +191,13 @@ export default function CarryOverCard({
                   }}
                   title={cat === 'keep' ? 'Adds to today and keeps category' : 'Adds to today and changes category'}
                 >
+                  <TodayIcon sx={{ fontSize: 16 }} />
                   Add to Today (Backlog)
                 </button>
 
                 {/* Pin to Top 3 */}
                 <button
-                  className="btn btn-sm btn-top3"
+                  className="btn btn-sm btn-top3 flex items-center gap-1"
                   onClick={async()=>{
                     const ids = (anySelected ? idsSelected : items.map(i=>i.id))
                     await onAddToTop3(ids)
@@ -182,6 +205,7 @@ export default function CarryOverCard({
                   }}
                   title="Add to today's Top 3"
                 >
+                  <PushPinIcon sx={{ fontSize: 16 }} />
                   Pin to Top 3
                 </button>
                 
@@ -195,15 +219,17 @@ export default function CarryOverCard({
                 {/* Complete/Delete */}
                 <div className="flex gap-1">
                   <button 
-                    className="btn btn-sm" 
+                    className="btn btn-sm flex items-center gap-1" 
                     onClick={async()=>{ await onComplete(anySelected?idsSelected:items.map(i=>i.id)); setSelected({}) }}
                   >
+                    <CheckCircleIcon sx={{ fontSize: 16 }} />
                     Complete
                   </button>
                   <button 
-                    className="btn btn-sm" 
+                    className="btn btn-sm flex items-center gap-1 text-red-400 hover:text-red-300" 
                     onClick={async()=>{ await onDelete(anySelected?idsSelected:items.map(i=>i.id)); setSelected({}) }}
                   >
+                    <DeleteIcon sx={{ fontSize: 16 }} />
                     Delete
                   </button>
                 </div>
@@ -240,7 +266,7 @@ export default function CarryOverCard({
                       onClick={()=>onAddToTop3([t.id])}
                       title="Pin to Top 3"
                     >
-                      <span className="text-lg leading-none">📌</span>
+                      <PushPinIcon sx={{ fontSize: 16 }} />
                       <span className="hidden sm:inline" style={{ whiteSpace: 'nowrap' }}>Top 3</span>
                     </button>
                     <select 
@@ -265,15 +291,15 @@ export default function CarryOverCard({
                         onClick={()=>onSnooze([t.id], toISODate(addDays(new Date(),1)))}
                         title="Snooze until tomorrow"
                       >
-                        <span className="text-sm">⏰</span>
+                        <SnoozeIcon sx={{ fontSize: 16 }} />
                         <span className="hidden sm:inline text-xs">Snooze</span>
                       </button>
                       <button 
-                        className="btn btn-sm px-2 text-red-400 hover:text-red-300" 
+                        className="btn btn-sm px-2 text-red-400 hover:text-red-300 flex items-center gap-1" 
                         onClick={()=>onDelete([t.id])}
                         title="Delete task"
                       >
-                        ×
+                        <DeleteIcon sx={{ fontSize: 16 }} />
                       </button>
                     </div>
                   </div>
