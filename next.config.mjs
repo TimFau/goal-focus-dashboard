@@ -3,6 +3,9 @@ const nextConfig = {
   // Server Actions are now stable and enabled by default
   // experimental: { serverActions: true }, // Remove this line
   
+  // Suppress hydration warnings from browser extensions like Grammarly
+  reactStrictMode: true,
+  
   // Improve hot reload performance
   webpack: (config, { dev, isServer }) => {
     if (dev && !isServer) {

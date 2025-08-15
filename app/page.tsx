@@ -34,6 +34,7 @@ export default function Dashboard() {
   const [energy, setEnergy] = useState<'all'|'low'>('all')
   const [view, setView] = useState<'planned'|'all'>('planned')
   const [date, setDate] = useState<string>(() => {
+    if (typeof window === 'undefined') return toISODate()
     const p = new URLSearchParams(window.location.search)
     return p.get('date') ?? toISODate()
   })

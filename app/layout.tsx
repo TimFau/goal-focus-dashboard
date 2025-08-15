@@ -36,7 +36,7 @@ async function Header() {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>
+      <body suppressHydrationWarning={true}>
         <div className="mx-auto max-w-3xl p-4 md:p-6">
           {await Header()}
           {children}

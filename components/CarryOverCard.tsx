@@ -287,8 +287,12 @@ export default function CarryOverCard({
                     <select 
                       className="btn btn-sm btn-backlog text-sm min-w-0" 
                       onChange={async e=>{
-                        await onPromote([t.id], e.target.value as any, toISODate()); 
-                        e.currentTarget.selectedIndex = 0
+                        const selectEl = e.currentTarget
+                        const value = selectEl.value as any
+                        // Reset UI immediately; element may unmount after the action
+                        selectEl.selectedIndex = 0
+                        if (!value) return
+                        await onPromote([t.id], value, toISODate())
                       }}
                       title="Add to today's On Deck"
                     >
