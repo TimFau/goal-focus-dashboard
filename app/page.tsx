@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import EnergyToggle from '@/components/EnergyToggle'
 import TopThree from '@/components/TopThree'
 import CategoryList from '@/components/CategoryList'
@@ -39,8 +39,9 @@ export default function Dashboard() {
   })
   const [data, setData] = useState<Data | null>(null)
   const [showTop3Modal, setShowTop3Modal] = useState(false)
-
-  const load = async () => {
+  
+  // Memoize load function to prevent unnecessary re-renders
+  const load = useCallback(async () => {
     const p = new URLSearchParams(window.location.search)
     const d = p.get('date') ?? toISODate()
     const v = (p.get('view') as 'planned'|'all') || view
@@ -56,11 +57,11 @@ export default function Dashboard() {
       setShowTop3Modal(true)
       localStorage.setItem(key, '1')
     }
-  }
+  }, [view]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { 
     load().catch(()=>{})
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
   
   // Check for URL changes periodically and on navigation events
   useEffect(() => {
@@ -77,13 +78,14 @@ export default function Dashboard() {
     window.addEventListener('popstate', handleNavigation)
     
     // Also check periodically for programmatic changes
-    const interval = setInterval(checkForChanges, 500)
+    // Use a longer interval in development to reduce hot reload issues
+    const interval = setInterval(checkForChanges, process.env.NODE_ENV === 'development' ? 1000 : 500)
     
     return () => {
       window.removeEventListener('popstate', handleNavigation)
       clearInterval(interval)
     }
-  }, [date, view])
+  }, [date, view, load]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlers = {
     async setFocus(items: Array<{ title?: string; task_id?: string } | null>) {
