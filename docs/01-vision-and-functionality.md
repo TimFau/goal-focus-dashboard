@@ -12,7 +12,7 @@ This document captures the current product vision and implemented functionality 
 - **Reduce overwhelm** by narrowing daily focus to a small, achievable set.
 - **Contain overdue stress** by isolating carry-over items for quick triage.
 - **Support fluctuating energy** with a low-energy view to surface easier wins.
-- **Encourage momentum** via micro-actions: Pin to Top 3, Add to Today, Snooze.
+- **Encourage momentum** via micro-actions: Pin to Top 3, Add to On Deck, Snooze.
 
 ### Core concepts and behavior
 
@@ -64,7 +64,7 @@ This document captures the current product vision and implemented functionality 
 
 - **Carry Over**
   - Overdue/incomplete items presented for quick triage.
-  - Bulk actions: Add to Today (On Deck), Pin to Top 3, Snooze (Tomorrow, +3d, Next Mon), Complete, Delete.
+  - Bulk actions: Add to On Deck, Pin to Top 3, Snooze (Tomorrow, +3d, Next Mon), Complete, Delete.
   - Auto-opens once per day if there are many items; tracks the oldest item age.
   - Includes a Snoozed Items modal for items moved into the future.
   - Implemented in `components/CarryOverCard.tsx`.

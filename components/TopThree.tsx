@@ -2,8 +2,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import { toISODate, fromISODateLocal, addDays } from '@/lib/date'
+import { CheckIconButton } from '@/components/IconButton'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
+import CelebrationIcon from '@mui/icons-material/Celebration'
 
 type FocusItem = { title?: string; task_id?: string } | null
 type Task = { id: string; title: string; done: boolean; low_energy: boolean; category: 'career'|'langpulse'|'health'|'life'; due_date?: string }
@@ -51,11 +53,29 @@ function TaskSelector({
     ? carryOverTasks.filter(t => t.due_date && t.due_date < selectedDate)
     : []
 
-  const allTasks = [...filteredPlanned, ...filteredCarryOver].sort((a,b) => {
-    // Sort by category, then by due date
-    if (a.category !== b.category) return a.category.localeCompare(b.category)
-    return (a.due_date || '').localeCompare(b.due_date || '')
-  })
+  // Group tasks by category
+  const tasksByCategory = useMemo(() => {
+    const allTasks = [...filteredPlanned, ...filteredCarryOver]
+    const grouped: Record<Task['category'], Task[]> = {
+      career: [],
+      langpulse: [],
+      health: [],
+      life: []
+    }
+    
+    allTasks.forEach(task => {
+      grouped[task.category].push(task)
+    })
+    
+    // Sort within each category by due date
+    Object.values(grouped).forEach(categoryTasks => {
+      categoryTasks.sort((a, b) => (a.due_date || '').localeCompare(b.due_date || ''))
+    })
+    
+    return grouped
+  }, [filteredPlanned, filteredCarryOver])
+
+  const totalTasks = Object.values(tasksByCategory).flat().length
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
@@ -64,28 +84,44 @@ function TaskSelector({
           <h3 className="font-semibold">Select a Task</h3>
           <button className="btn" onClick={onClose}>Close</button>
         </div>
-        <div className="space-y-2">
-          {allTasks.length === 0 ? (
+        <p className="text-xs opacity-70 mb-4">
+          Showing tasks scheduled for {selectedDate >= today ? 'today' : 'this date'} and overdue items that need attention
+        </p>
+        <div className="space-y-3">
+          {totalTasks === 0 ? (
             <p className="text-sm opacity-70 py-4 text-center">No tasks available for this date</p>
           ) : (
-            allTasks.map(task => (
-              <button
-                key={task.id}
-                className="w-full text-left p-2 rounded hover:bg-white/10 border border-white/10"
-                onClick={() => {
-                  onSelect({ title: task.title, task_id: task.id })
-                  onClose()
-                }}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="flex-1 truncate">{task.title}</span>
-                  <span className="text-xs opacity-60 ml-2">{task.category}</span>
+            Object.entries(tasksByCategory).map(([category, categoryTasks]) => {
+              if (categoryTasks.length === 0) return null
+              
+              return (
+                <div key={category}>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-medium opacity-80 capitalize">{category}</h4>
+                    <span className="text-xs opacity-60">{categoryTasks.length}</span>
+                  </div>
+                  <div className="space-y-1">
+                    {categoryTasks.map(task => (
+                      <button
+                        key={task.id}
+                        className="w-full text-left p-2 rounded hover:bg-white/10 border border-white/10"
+                        onClick={() => {
+                          onSelect({ title: task.title, task_id: task.id })
+                          onClose()
+                        }}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="flex-1 truncate">{task.title}</span>
+                        </div>
+                        {task.due_date && (
+                          <div className="text-xs opacity-50 mt-1">{task.due_date}</div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                {task.due_date && (
-                  <div className="text-xs opacity-50 mt-1">{task.due_date}</div>
-                )}
-              </button>
-            ))
+              )
+            })
           )}
         </div>
       </div>
@@ -133,9 +169,13 @@ function Slot({
     }
   }
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleSave()
+    } else if (e.key === 'Escape') {
+      // Reset to original value if there is one, or clear
+      const originalValue = value?.title ?? ''
+      onChange(slotNum, originalValue)
     }
   }
   
@@ -143,19 +183,17 @@ function Slot({
     <>
       <div ref={setNodeRef} className={`p-3 rounded-lg border border-white/10 ${isOver ? 'bg-white/10' : 'bg-white/5'}`}>
         <div className="flex items-center gap-2">
-          <input
-            className="chk"
-            type="checkbox"
-            onChange={()=>onDone(slotNum)}
-            checked={false}
-            title="Mark done"
+          <CheckIconButton
+            onClick={()=>onDone(slotNum)}
+            label="Mark done"
+            size="sm"
           />
           <input
             className="flex-1 bg-transparent outline-none"
             placeholder={`Top ${slotNum}`}
             value={value?.title ?? ''}
             onChange={e=>onChange(slotNum, e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
           />
           {/* Show select button for empty slots or save button for manual entries */}
           {!value?.task_id && (
@@ -173,7 +211,7 @@ function Slot({
                 <button
                   className="btn btn-sm btn-top3"
                   onClick={() => setShowSelector(true)}
-                  title="Pick from tasks"
+                  title="Select from your tasks"
                 >
                   Select
                 </button>
@@ -185,7 +223,8 @@ function Slot({
             <button
               className="btn btn-sm p-1"
               onClick={() => setExpanded(!expanded)}
-              title="More actions"
+              title="Show more actions"
+              aria-label={expanded ? "Hide more actions" : "Show more actions"}
             >
               {expanded ? (
                 <ExpandLessIcon sx={{ fontSize: 16 }} />
@@ -202,12 +241,12 @@ function Slot({
             <button
               className="btn btn-sm btn-top3"
               onClick={() => setShowSelector(true)}
-              title="Pick from tasks"
+              title="Select from your tasks"
             >
               Change
             </button>
-            <button className="btn btn-sm btn-backlog" title="Remove from Top 3 and keep for today" onClick={()=>onDemoteToBacklog(slotNum)}>To On Deck</button>
-            <button className="btn btn-sm" title="Remove from Top 3 and move out of today" onClick={()=>onDemoteToCarry(slotNum)}>To Carry Over</button>
+            <button className="btn btn-sm btn-backlog" title="Remove from Top 3 and keep for today" onClick={()=>onDemoteToBacklog(slotNum)}>Move to On Deck</button>
+            <button className="btn btn-sm" title="Remove from Top 3 and move out of today" onClick={()=>onDemoteToCarry(slotNum)}>Move to Carry Over</button>
           </div>
         )}
       </div>
@@ -244,9 +283,23 @@ export default function TopThree({
   onSnooze: (ids: string[], date: string) => Promise<void>
 }) {
   const [items, setItems] = useState<FocusItem[]>(() => [initial?.[0] ?? null, initial?.[1] ?? null, initial?.[2] ?? null])
+  const [showCelebration, setShowCelebration] = useState(false)
+  
   useEffect(() => {
     setItems([initial?.[0] ?? null, initial?.[1] ?? null, initial?.[2] ?? null])
   }, [initial])
+
+  // Check for celebration when items change
+  useEffect(() => {
+    const filledSlots = items.filter(item => item && item.title && item.title.trim() !== '').length
+    const wasComplete = filledSlots === 3
+    
+    if (wasComplete && !showCelebration) {
+      setShowCelebration(true)
+      // Auto-hide celebration after 3 seconds
+      setTimeout(() => setShowCelebration(false), 3000)
+    }
+  }, [items, showCelebration])
 
   const setTitle = (slot: number, title: string) => {
     setItems(prev => {
@@ -307,10 +360,32 @@ export default function TopThree({
     await onSet(next)
   }
  
+  // Calculate progress
+  const filledSlots = items.filter(item => item && item.title && item.title.trim() !== '').length
+  const progressText = `${filledSlots}/3`
+  const isComplete = filledSlots === 3
+
   return (
     <div className="card card-top3 accent-top3 p-4">
-      <div className="mb-3">
+      <div className="mb-3 flex items-center justify-between">
         <h3 className="font-semibold text-amber-300">{getDateLabel(selectedDate)}</h3>
+        <div className="flex items-center gap-2">
+          {showCelebration && (
+            <CelebrationIcon 
+              sx={{ fontSize: 16 }} 
+              className="text-amber-300 animate-bounce" 
+            />
+          )}
+          <span 
+            className={`text-xs px-2 py-1 rounded-full font-medium transition-all duration-300 ${
+              isComplete 
+                ? 'bg-green-300/20 text-green-300 ring-1 ring-green-300/30' 
+                : 'bg-amber-300/20 text-amber-300'
+            }`}
+          >
+            {progressText}
+          </span>
+        </div>
       </div>
       <div className="grid gap-3">
         {[1,2,3].map(i => (
@@ -331,7 +406,7 @@ export default function TopThree({
         ))}
       </div>
       <p className="mt-2 text-xs opacity-60">
-        Tip: drag tasks onto a slot, click "Select" to choose from tasks, or type and press Enter/Save.
+        Drag, Select from tasks, or type and press Enter
       </p>
     </div>
   )

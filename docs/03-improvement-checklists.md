@@ -5,20 +5,20 @@ These checklists are intended for iterative UX, UI, and technical improvements; 
 
 ### Copy and terminology
 
-- [ ] Rename view toggle: "Planned" → "Today"; "All Active" → "All"
-- [ ] Standardize labels:
-  - [ ] "Add to Today (On Deck)" → "Add to On Deck"
-  - [ ] "To On Deck" → "Move to On Deck"
-  - [ ] "To Carry Over" → "Move to Carry Over"
-  - [ ] Avoid "Promote" in UI copy
-- [ ] Review consistency of terminology across tooltips, settings, and onboarding copy
+- [x] Rename view toggle: "Planned" → "Today"; "All Active" → "All"
+- [x] Standardize labels:
+  - [x] "Add to Today (On Deck)" → "Add to On Deck"
+  - [x] "To On Deck" → "Move to On Deck"
+  - [x] "To Carry Over" → "Move to Carry Over"
+  - [x] Avoid "Promote" in UI copy
+- [x] Review consistency of terminology across tooltips, settings, and onboarding copy
 
 ### Top 3 clarity and feedback
 
-- [ ] Replace Top 3 slot checkbox with a clear “Done” control (icon button)
-- [ ] Add a subtle progress pill near Top 3 header (e.g., 0/3 → 3/3)
-- [ ] Add a small celebration when hitting 3/3 for the day
-- [ ] Ensure Enter key saves free-text; add Esc to cancel edit if needed
+- [x] Replace Top 3 slot checkbox with a clear "Done" control (icon button)
+- [x] Add a subtle progress pill near Top 3 header (e.g., 0/3 → 3/3)
+- [x] Add a small celebration when hitting 3/3 for the day
+- [x] Ensure Enter key saves free-text; add Esc to cancel edit if needed
 
 ### Focus-Time Done Rule (Top 3)
 
@@ -35,17 +35,17 @@ These checklists are intended for iterative UX, UI, and technical improvements; 
 
 ### Task selection and triage
 
-- [ ] Group Task Selector options by category with headers and counts
-- [ ] Add a one-line explainer in selector: explaining why these tasks are shown
+- [x] Group Task Selector options by category with headers and counts
+- [x] Add a one-line explainer in selector: explaining why these tasks are shown
 - [ ] Add filters in selector: All / Planned / Carry Over
 - [ ] Carry Over: show hint for Bulk Edit when expanded
 - [ ] Maintain column alignment when bulk mode is toggled
 
 ### Energy mode
 
-- [ ] Rename control label to "Energy mode"
-- [ ] Add tooltip: "Low shows tasks marked low energy—great for depleted moments"
-- [ ] Use a calming icon/color for Low mode for better emotional resonance
+- [x] Rename control label to "Energy mode"
+- [x] Add tooltip: "Low shows tasks marked low energy—great for depleted moments"
+- [x] Use a calming icon/color for Low mode for better emotional resonance
 
 ### All view
 
@@ -54,9 +54,9 @@ These checklists are intended for iterative UX, UI, and technical improvements; 
 
 ### Accessibility and keyboard
 
-- [ ] Add `aria-label` to icon-only buttons (Pin, Snooze, Delete, Done)
+- [x] Add `aria-label` to icon-only buttons (Pin, Snooze, Delete, Done)
 - [ ] Add visible focus states for interactive controls
-- [ ] Support Enter/Esc in modals; sanity-check and fix Tab order where needed
+- [x] Support Enter/Esc in modals; sanity-check and fix Tab order where needed
 - [ ] Add keyboard shortcuts for Pin (P), Add to On Deck (A), Snooze (S) where safe
 
 ### Settings and reminders
@@ -75,6 +75,6 @@ These checklists are intended for iterative UX, UI, and technical improvements; 
 
 ### Microcopy
 
-- [ ] Top 3 tip: "Drag, Select from tasks, or type and press Enter"
-- [ ] Carry Over subtext: "Triage to lighten the load—just a few clicks"
-- [ ] Energy tooltip copy as above
+- [x] Top 3 tip: "Drag, Select from tasks, or type and press Enter"
+- [x] Carry Over subtext: "Triage to lighten the load—just a few clicks"
+- [x] Energy tooltip copy as above

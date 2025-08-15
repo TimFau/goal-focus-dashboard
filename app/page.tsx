@@ -203,7 +203,7 @@ export default function Dashboard() {
       return
     }
 
-    // Dropped into category: promote to today
+    // Dropped into category: add to today
     if (['career','langpulse','health','life'].includes(target)) {
       await handlers.promote([task.id], target as any, toISODate())
     }
@@ -216,8 +216,8 @@ export default function Dashboard() {
         <div className="flex items-center gap-2">
           <div className="card p-2">
             <div className="inline-flex overflow-hidden rounded-md border border-white/10">
-              <button className={`px-3 py-2 ${view==='planned' ? 'bg-white/10' : ''}`} onClick={()=>handlers.setView('planned')}>Planned</button>
-              <button className={`px-3 py-2 ${view==='all' ? 'bg-white/10' : ''}`} onClick={()=>handlers.setView('all')}>All Active</button>
+              <button className={`px-3 py-2 ${view==='planned' ? 'bg-white/10' : ''}`} onClick={()=>handlers.setView('planned')}>Today</button>
+              <button className={`px-3 py-2 ${view==='all' ? 'bg-white/10' : ''}`} onClick={()=>handlers.setView('all')}>All</button>
             </div>
           </div>
           <EnergyToggle value={energy} onChange={setEnergy} />

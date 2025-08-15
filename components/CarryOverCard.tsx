@@ -117,7 +117,10 @@ export default function CarryOverCard({
   return (
     <div className="card card-carry accent-carry p-4">
       <div className="flex items-center gap-3">
-        <h3 className="font-semibold text-violet-300">Carry Over</h3>
+        <div>
+          <h3 className="font-semibold text-violet-300">Carry Over</h3>
+          <p className="text-xs opacity-60 mt-1">Triage to lighten the load—just a few clicks</p>
+        </div>
         <span className="text-xs opacity-70">· {items.length} {items.length===1?'item':'items'}{oldestAge>0?` (oldest ${oldestAge}d)`:''}</span>
         <div className="ml-auto flex items-center gap-2">
           {/* Snoozed items indicator */}
@@ -170,7 +173,7 @@ export default function CarryOverCard({
                 <select
                   value={cat}
                   onChange={e=>setCat(e.target.value as any)}
-                  title="Choose category override (default: keep existing)"
+                  title="Choose category for selected tasks (default: keep existing category)"
                 >
                   <option value="keep">Keep existing category</option>
                   <option value="career">Career</option>
@@ -182,7 +185,7 @@ export default function CarryOverCard({
               
               {/* Action buttons - grouped by function */}
               <div className="flex flex-wrap gap-2">
-                {/* Promote */}
+                {/* Add to Today */}
                 <button
                   className="btn btn-sm btn-backlog flex items-center gap-1"
                   onClick={async()=>{
@@ -204,10 +207,10 @@ export default function CarryOverCard({
                     }
                     setSelected({})
                   }}
-                  title={cat === 'keep' ? 'Adds to today and keeps category' : 'Adds to today and changes category'}
+                  title={cat === 'keep' ? 'Add to On Deck and keep existing categories' : 'Add to On Deck and change to selected category'}
                 >
                   <TodayIcon sx={{ fontSize: 16 }} />
-                  Add to Today (On Deck)
+                  Add to On Deck
                 </button>
 
                 {/* Pin to Top 3 */}
@@ -218,7 +221,7 @@ export default function CarryOverCard({
                     await onAddToTop3(ids)
                     setSelected({})
                   }}
-                  title="Add to today's Top 3"
+                  title="Pin to Top 3"
                 >
                   <PushPinIcon sx={{ fontSize: 16 }} />
                   Pin to Top 3
@@ -250,7 +253,7 @@ export default function CarryOverCard({
                 </div>
               </div>
               <div className="text-xs opacity-60">
-                "Add to Today (On Deck)" does not add to Top 3
+                "Add to On Deck" does not add to Top 3
               </div>
             </div>
           )}
@@ -294,9 +297,9 @@ export default function CarryOverCard({
                         if (!value) return
                         await onPromote([t.id], value, toISODate())
                       }}
-                      title="Add to today's On Deck"
+                      title="Add to On Deck for today"
                     >
-                      <option value="">Add to Today</option>
+                      <option value="">Add to On Deck</option>
                       <option value="career">→ Career</option>
                       <option value="langpulse">→ LangPulse</option>
                       <option value="health">→ Health</option>
@@ -317,6 +320,7 @@ export default function CarryOverCard({
                         className="btn btn-sm px-2 text-red-400 hover:text-red-300 flex items-center gap-1" 
                         onClick={()=>onDelete([t.id])}
                         title="Delete task"
+                        aria-label="Delete task"
                       >
                         <DeleteIcon sx={{ fontSize: 16 }} />
                       </button>
@@ -386,6 +390,7 @@ export default function CarryOverCard({
                               setShowSnoozedModal(false)
                             }}
                             title="Delete permanently"
+                            aria-label="Delete permanently"
                           >
                             <DeleteIcon sx={{ fontSize: 14 }} />
                           </button>
