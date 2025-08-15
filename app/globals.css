@@ -28,3 +28,15 @@ select { @apply bg-transparent border border-white/20 rounded px-3 py-2 w-full; 
 .card-top3 { background: rgba(251, 191, 36, 0.08); border-color: rgba(251, 191, 36, 0.25); }
 .card-backlog { background: rgba(56, 189, 248, 0.08); border-color: rgba(56, 189, 248, 0.25); }
 .card-carry { background: rgba(139, 92, 246, 0.08); border-color: rgba(139, 92, 246, 0.25); }
+
+/* Focus States */
+.btn:focus-visible,
+input:focus-visible,
+select:focus-visible,
+[role="button"]:focus-visible,
+[role="checkbox"]:focus-visible,
+[role="menuitem"]:focus-visible {
+  outline: 2px solid #a7f3d0; /* A light green color */
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(167, 243, 208, 0.2);
+}

@@ -44,6 +44,7 @@ function TaskSelector({
   onSelect: (task: { title: string, task_id: string }) => void
   selectedDate: string
 }) {
+  const [filter, setFilter] = useState<'all' | 'planned' | 'carryOver'>('all');
   if (!open) return null
 
   // Filter tasks based on selected date
@@ -53,9 +54,19 @@ function TaskSelector({
     ? carryOverTasks.filter(t => t.due_date && t.due_date < selectedDate)
     : []
 
+  const filteredTasks = useMemo(() => {
+    if (filter === 'planned') {
+      return filteredPlanned;
+    }
+    if (filter === 'carryOver') {
+      return filteredCarryOver;
+    }
+    return [...filteredPlanned, ...filteredCarryOver];
+  }, [filter, filteredPlanned, filteredCarryOver]);
+
   // Group tasks by category
   const tasksByCategory = useMemo(() => {
-    const allTasks = [...filteredPlanned, ...filteredCarryOver]
+    const allTasks = filteredTasks;
     const grouped: Record<Task['category'], Task[]> = {
       career: [],
       langpulse: [],
@@ -73,7 +84,7 @@ function TaskSelector({
     })
     
     return grouped
-  }, [filteredPlanned, filteredCarryOver])
+  }, [filteredTasks])
 
   const totalTasks = Object.values(tasksByCategory).flat().length
 
@@ -83,6 +94,13 @@ function TaskSelector({
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold">Select a Task</h3>
           <button className="btn" onClick={onClose}>Close</button>
+        </div>
+        <div className="flex items-center justify-between mb-3">
+          <div className="inline-flex overflow-hidden rounded-md border border-white/10">
+            <button className={`px-3 py-1 text-xs ${filter === 'all' ? 'bg-white/10' : ''}`} onClick={() => setFilter('all')}>All</button>
+            <button className={`px-3 py-1 text-xs ${filter === 'planned' ? 'bg-white/10' : ''}`} onClick={() => setFilter('planned')}>Planned</button>
+            <button className={`px-3 py-1 text-xs ${filter === 'carryOver' ? 'bg-white/10' : ''}`} onClick={() => setFilter('carryOver')}>Carry Over</button>
+          </div>
         </div>
         <p className="text-xs opacity-70 mb-4">
           Showing tasks scheduled for {selectedDate >= today ? 'today' : 'this date'} and overdue items that need attention

@@ -114,6 +114,45 @@ export default function CarryOverCard({
     setSelected({})
   }
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!expanded || !anySelected) return;
+
+      switch (event.key) {
+        case 'p':
+          onAddToTop3(idsSelected);
+          setSelected({});
+          break;
+        case 'a':
+          const ids = idsSelected;
+          if (cat === 'keep') {
+            const groups: Record<Task['category'], string[]> = { career: [], langpulse: [], health: [], life: [] }
+            ids.forEach(id => {
+              const t = items.find(it => it.id === id)
+              if (t) groups[t.category].push(id)
+            })
+            for (const [groupCat, groupIds] of Object.entries(groups) as [Task['category'], string[]][]) {
+              if (groupIds.length) {
+                onPromote(groupIds, groupCat, toISODate())
+              }
+            }
+          } else {
+            onPromote(ids, cat, toISODate())
+          }
+          setSelected({});
+          break;
+        case 's':
+          quickSnooze(1);
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [expanded, anySelected, idsSelected, onAddToTop3, onPromote, quickSnooze, cat, items]);
+
   return (
     <div className="card card-carry accent-carry p-4">
       <div className="flex items-center gap-3">
@@ -135,14 +174,21 @@ export default function CarryOverCard({
             </button>
           )}
           {expanded && (
-            <button 
-              className="btn btn-sm flex items-center gap-1" 
-              onClick={()=>setShowBulkActions(!showBulkActions)}
-              title="Toggle bulk actions"
-            >
-              <EditIcon sx={{ fontSize: 16 }} />
-              {showBulkActions ? 'Hide Bulk' : 'Bulk Edit'}
-            </button>
+            <div className="relative">
+              <button
+                className="btn btn-sm flex items-center gap-1"
+                onClick={()=>setShowBulkActions(!showBulkActions)}
+                title="Toggle bulk actions"
+              >
+                <EditIcon sx={{ fontSize: 16 }} />
+                {showBulkActions ? 'Hide Bulk' : 'Bulk Edit'}
+              </button>
+              {!showBulkActions && (
+                <div className="absolute top-full right-0 mt-2 text-xs bg-gray-800 text-white p-2 rounded shadow-lg whitespace-nowrap">
+                  Hint: Use Bulk Edit for quick triage!
+                </div>
+              )}
+            </div>
           )}
           <button className="btn flex items-center gap-1" onClick={()=>setExpanded(!expanded)}>
             {expanded ? (
@@ -266,9 +312,11 @@ export default function CarryOverCard({
                 <div className="flex flex-wrap items-center gap-3">
                   {/* Left: Selection (bulk mode) + Task info */}
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    {showBulkActions && (
-                      <input type="checkbox" className="chk flex-shrink-0" checked={!!selected[t.id]} onChange={e=>setSelected(s=>({...s,[t.id]:e.target.checked}))} />
-                    )}
+                    <div className="w-6">
+                      {showBulkActions && (
+                        <input type="checkbox" className="chk flex-shrink-0" checked={!!selected[t.id]} onChange={e=>setSelected(s=>({...s,[t.id]:e.target.checked}))} />
+                      )}
+                    </div>
                     {/* Task with completion button and metadata */}
                     <div className="flex-1 min-w-0">
                       <DraggableItem task={t} left={<CheckIconButton onClick={async (e)=>{ e.stopPropagation(); await onComplete([t.id]) }} />} />

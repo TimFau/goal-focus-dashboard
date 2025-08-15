@@ -37,9 +37,9 @@ These checklists are intended for iterative UX, UI, and technical improvements; 
 
 - [x] Group Task Selector options by category with headers and counts
 - [x] Add a one-line explainer in selector: explaining why these tasks are shown
-- [ ] Add filters in selector: All / Planned / Carry Over
-- [ ] Carry Over: show hint for Bulk Edit when expanded
-- [ ] Maintain column alignment when bulk mode is toggled
+- [x] Add filters in selector: All / Planned / Carry Over
+- [x] Carry Over: show hint for Bulk Edit when expanded
+- [x] Maintain column alignment when bulk mode is toggled
 
 ### Energy mode
 
@@ -55,9 +55,9 @@ These checklists are intended for iterative UX, UI, and technical improvements; 
 ### Accessibility and keyboard
 
 - [x] Add `aria-label` to icon-only buttons (Pin, Snooze, Delete, Done)
-- [ ] Add visible focus states for interactive controls
+- [x] Add visible focus states for interactive controls
 - [x] Support Enter/Esc in modals; sanity-check and fix Tab order where needed
-- [ ] Add keyboard shortcuts for Pin (P), Add to On Deck (A), Snooze (S) where safe
+- [x] Add keyboard shortcuts for Pin (P), Add to On Deck (A), Snooze (S) where safe
 
 ### Settings and reminders
 
