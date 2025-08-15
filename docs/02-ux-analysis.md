@@ -5,6 +5,7 @@ This document analyzes clarity, cohesion, and ND-friendly aspects in the current
 ### Strengths
 
 - **Focus-first design**: Top 3 reduces decision fatigue and guides action.
+- **Flexible completion criteria**: Focus-Time Done Rule rewards sustained attention (e.g., 90 minutes) on a Top 3 task, reducing perfectionism and encouraging progress recognition.
 - **Gentle guardrails**: On Deck is collapsed with copy that protects focus.
 - **Energy-based filtering**: Supports capacity- and mood-aligned task picking.
 - **Carry Over triage**: Bulk actions make catching up fast; snooze presets lower friction.
@@ -16,9 +17,9 @@ This document analyzes clarity, cohesion, and ND-friendly aspects in the current
   - Mixed user-facing language: Promote/Add to Today/To On Deck/Pin/Snooze/Carry Over.
   - Suggested direction: standardize to "Add to On Deck", "Pin to Top 3", "Move to On Deck", "Move to Carry Over"; avoid "Promote" in UI.
 
-- **Top 3 checkbox affordance**
-  - The slot checkbox is always visually unchecked; checking triggers completion/clear but never remains checked. Looks broken.
-  - Replace with a clear "Done" action (icon button) and an optional progress pill (e.g., 2/3 done).
+- **Top 3 completion affordance**
+  - With Focus-Time Done Rule, a slot can be “Focus Done” or “Task Complete.” The current checkbox interaction is still unclear: it never stays checked and doesn’t visually distinguish between the two states.
+  - Solution: use separate visual indicators—e.g., a progress ring/badge for Focus Done and a solid check icon for Task Complete—to avoid ambiguity.
 
 - **Demotion semantics**
   - "To Carry Over" uses a snooze-to-yesterday heuristic to force carry-over status.
@@ -41,8 +42,8 @@ This document analyzes clarity, cohesion, and ND-friendly aspects in the current
   - Use "Energy mode" label and a tooltip: "Low shows tasks marked low energy—great for depleted moments."
 
 - **Positive reinforcement**
-  - No celebratory microinteraction for finishing Top 3.
-  - Add a subtle animation, confetti, or upbeat message upon 3/3 completion.
+  - Focus-Time Done Rule adds celebration cues for Focus Done, but the main Top 3 completion celebration (3/3) is still absent or separate.
+  - Align microinteractions so that Focus Done celebrations feel consistent and cumulative toward the overall Top 3 completion state.
 
 - **All Active overwhelm**
   - Dense, sorted by date only; still a lot to parse.
@@ -62,5 +63,4 @@ This document analyzes clarity, cohesion, and ND-friendly aspects in the current
 - Should Top 3 support multiple free-text items and how are they recorded historically?
 - Is there a weekly planning layer envisioned (weekly Top 3 or template-driven planning)?
 - What channels and schedules should reminders support (and quiet hours)?
-
-
+- How should Focus-Time Done Rule progress be surfaced in other views (On Deck, Carry Over, All Active) without overwhelming the UI?

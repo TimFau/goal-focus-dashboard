@@ -1,6 +1,7 @@
 ### Improvement checklists
 
-Actionable, bite-sized tasks to evolve clarity and ND-friendliness.
+Actionable, bite-sized tasks to evolve clarity and ND-friendliness.  
+These checklists are intended for iterative UX, UI, and technical improvements; each item should be independently testable.
 
 ### Copy and terminology
 
@@ -10,18 +11,32 @@ Actionable, bite-sized tasks to evolve clarity and ND-friendliness.
   - [ ] "To On Deck" → "Move to On Deck"
   - [ ] "To Carry Over" → "Move to Carry Over"
   - [ ] Avoid "Promote" in UI copy
+- [ ] Review consistency of terminology across tooltips, settings, and onboarding copy
 
 ### Top 3 clarity and feedback
 
-- [ ] Replace Top 3 slot checkbox with a "Done" icon button
+- [ ] Replace Top 3 slot checkbox with a clear “Done” control (icon button)
 - [ ] Add a subtle progress pill near Top 3 header (e.g., 0/3 → 3/3)
 - [ ] Add a small celebration when hitting 3/3 for the day
 - [ ] Ensure Enter key saves free-text; add Esc to cancel edit if needed
 
+### Focus-Time Done Rule (Top 3)
+
+- [ ] Add progress ring and “Done (Focus)” badge to Top 3 slot when target minutes reached
+- [ ] Differentiate visuals for “Done (Focus)” vs “Task Complete” (e.g., ring/badge vs solid check icon)
+- [ ] Add focus timer controls (start/pause/stop) and manual time log option in slot hover menu
+- [ ] Show tooltip with remaining minutes on hover over progress ring
+- [ ] Trigger celebration animation/sound when focus target reached (respect settings)
+- [ ] Ensure progress is reset at midnight (user timezone) unless carried over
+- [ ] Store daily focus logs for linked tasks in `task_focus_log` with minutes and source
+- [ ] Add settings toggles for enabling rule, target duration, celebration cues, auto-hide in Carry Over
+- [ ] Surface focus progress consistently in other views (On Deck, Carry Over, All Active) without visual overload
+- [ ] Validate idle timeout and visibility change handling for accurate focus time logging
+
 ### Task selection and triage
 
 - [ ] Group Task Selector options by category with headers and counts
-- [ ] Add a one-line explainer in selector: why these tasks are shown
+- [ ] Add a one-line explainer in selector: explaining why these tasks are shown
 - [ ] Add filters in selector: All / Planned / Carry Over
 - [ ] Carry Over: show hint for Bulk Edit when expanded
 - [ ] Maintain column alignment when bulk mode is toggled
@@ -30,18 +45,18 @@ Actionable, bite-sized tasks to evolve clarity and ND-friendliness.
 
 - [ ] Rename control label to "Energy mode"
 - [ ] Add tooltip: "Low shows tasks marked low energy—great for depleted moments"
-- [ ] Consider calming icon/color for Low mode
+- [ ] Use a calming icon/color for Low mode for better emotional resonance
 
 ### All view
 
 - [ ] Add quick filters: Today, This Week, No Date, Low Energy
-- [ ] Group by date with sticky headers and counts
+- [ ] Group tasks by date with sticky headers and counts
 
 ### Accessibility and keyboard
 
 - [ ] Add `aria-label` to icon-only buttons (Pin, Snooze, Delete, Done)
 - [ ] Add visible focus states for interactive controls
-- [ ] Support Enter/Esc in modals; Tab order sanity-check
+- [ ] Support Enter/Esc in modals; sanity-check and fix Tab order where needed
 - [ ] Add keyboard shortcuts for Pin (P), Add to On Deck (A), Snooze (S) where safe
 
 ### Settings and reminders
@@ -49,17 +64,17 @@ Actionable, bite-sized tasks to evolve clarity and ND-friendliness.
 - [ ] Add inline note if Save is not yet connected (disable button or show toast)
 - [ ] If wiring persistence: save timezone and times to backend; confirm on save
 - [ ] Clarify reminder behavior (channels, times, quiet hours)
+- [ ] Add user-facing explanation for reminder scheduling, including quiet hours and repeat patterns
 
 ### Semantics and backend
 
 - [ ] Replace snooze-to-yesterday hack with explicit "move to carry-over/backlog" operation
 - [ ] Decide representation for carry-over vs backlog vs planned
 - [ ] Consider lightweight history of Top 3 selections for reflection
+- [ ] Audit backend schema for alignment with new Focus-Time Done Rule data (focus logs, target minutes)
 
 ### Microcopy
 
 - [ ] Top 3 tip: "Drag, Select from tasks, or type and press Enter"
 - [ ] Carry Over subtext: "Triage to lighten the load—just a few clicks"
 - [ ] Energy tooltip copy as above
-
-
