@@ -15,6 +15,7 @@ import EditIcon from '@mui/icons-material/Edit'
 import AddIcon from '@mui/icons-material/Add'
 import TodayIcon from '@mui/icons-material/Today'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+import HistoryIcon from '@mui/icons-material/History'
 
 function DraggableItem({ task, left }: { task: Task; left: React.ReactNode }) {
   const { attributes, listeners, setNodeRef, isDragging, transform } = useDraggable({ id: task.id, data: { task } })
@@ -36,6 +37,7 @@ export default function CarryOverCard({
   onDelete,      // (ids) => Promise<void>
   onComplete,    // (ids) => Promise<void>
   onAddToTop3,   // (ids) => Promise<void>
+  snoozedItems,  // tasks with future due dates
 }: {
   items: Task[]
   onPromote: (ids: string[], category: Task['category'], date: string) => Promise<void>
@@ -43,6 +45,7 @@ export default function CarryOverCard({
   onDelete: (ids: string[]) => Promise<void>
   onComplete: (ids: string[]) => Promise<void>
   onAddToTop3: (ids: string[]) => Promise<void>
+  snoozedItems?: Task[]
 }) {
   const [expanded, setExpanded] = useState<boolean>(false)
   const [selected, setSelected] = useState<Record<string, boolean>>({})
@@ -50,6 +53,7 @@ export default function CarryOverCard({
   const [showCount, setShowCount] = useState(5)
   const [initialized, setInitialized] = useState(false)
   const [showBulkActions, setShowBulkActions] = useState(false)
+  const [showSnoozedModal, setShowSnoozedModal] = useState(false)
 
   // Persist collapse state per day; optionally auto-open once/day if many items
   useEffect(() => {
@@ -116,6 +120,17 @@ export default function CarryOverCard({
         <h3 className="font-semibold text-violet-300">Carry Over</h3>
         <span className="text-xs opacity-70">· {items.length} {items.length===1?'item':'items'}{oldestAge>0?` (oldest ${oldestAge}d)`:''}</span>
         <div className="ml-auto flex items-center gap-2">
+          {/* Snoozed items indicator */}
+          {snoozedItems && snoozedItems.length > 0 && (
+            <button 
+              className="btn btn-sm flex items-center gap-1 opacity-70 hover:opacity-100" 
+              onClick={() => setShowSnoozedModal(true)}
+              title={`${snoozedItems.length} snoozed item${snoozedItems.length === 1 ? '' : 's'}`}
+            >
+              <HistoryIcon sx={{ fontSize: 16 }} />
+              <span className="text-xs">{snoozedItems.length}</span>
+            </button>
+          )}
           {expanded && (
             <button 
               className="btn btn-sm flex items-center gap-1" 
@@ -313,6 +328,72 @@ export default function CarryOverCard({
             </div>
           )}
         </>
+      )}
+
+      {/* Snoozed Items Modal */}
+      {showSnoozedModal && snoozedItems && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="w-full max-w-lg card p-4 max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold flex items-center gap-2">
+                <HistoryIcon sx={{ fontSize: 20 }} />
+                Snoozed Items
+              </h3>
+              <button 
+                className="btn btn-sm" 
+                onClick={() => setShowSnoozedModal(false)}
+              >
+                Close
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto">
+              {snoozedItems.length === 0 ? (
+                <p className="text-center opacity-60 py-8">No snoozed items</p>
+              ) : (
+                <ul className="space-y-2">
+                  {snoozedItems
+                    .sort((a, b) => (a.due_date ?? '').localeCompare(b.due_date ?? ''))
+                    .map((task) => (
+                    <li key={task.id} className="p-3 rounded border border-white/10 hover:bg-white/5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium">{task.title}</div>
+                          <div className="text-xs opacity-60 mt-1">
+                            {task.category} · Due {task.due_date}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 ml-4">
+                          <button 
+                            className="btn btn-sm btn-backlog flex items-center gap-1"
+                            onClick={async () => {
+                              await onPromote([task.id], task.category, toISODate())
+                              setShowSnoozedModal(false)
+                            }}
+                            title="Bring back to today"
+                          >
+                            <TodayIcon sx={{ fontSize: 14 }} />
+                            <span className="text-xs">Today</span>
+                          </button>
+                          <button 
+                            className="btn btn-sm flex items-center gap-1 text-red-400 hover:text-red-300"
+                            onClick={async () => {
+                              await onDelete([task.id])
+                              setShowSnoozedModal(false)
+                            }}
+                            title="Delete permanently"
+                          >
+                            <DeleteIcon sx={{ fontSize: 14 }} />
+                          </button>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

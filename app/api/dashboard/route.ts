@@ -38,8 +38,8 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  // PLANNED: today's tasks, plus carry-over from earlier dates
-  const [{ data: planned, error: pErr }, { data: carry, error: cErr }, { data: focusRows, error: fErr }] = await Promise.all([
+  // PLANNED: today's tasks, plus carry-over from earlier dates, plus snoozed items
+  const [{ data: planned, error: pErr }, { data: carry, error: cErr }, { data: snoozed, error: sErr }, { data: focusRows, error: fErr }] = await Promise.all([
     supabase
       .from('tasks')
       .select('id, title, done, low_energy, category, due_date')
@@ -53,6 +53,13 @@ export async function GET(req: NextRequest) {
       .order('due_date', { ascending: true })
       .order('created_at', { ascending: true }),
     supabase
+      .from('tasks')
+      .select('id, title, done, low_energy, category, due_date')
+      .gt('due_date', date)
+      .eq('done', false)
+      .order('due_date', { ascending: true })
+      .order('created_at', { ascending: true }),
+    supabase
       .from('daily_focus')
       .select('slot, task_id, free_text')
       .eq('date', date)
@@ -61,10 +68,12 @@ export async function GET(req: NextRequest) {
 
   if (pErr) return NextResponse.json({ error: pErr }, { status: 500 })
   if (cErr) return NextResponse.json({ error: cErr }, { status: 500 })
+  if (sErr) return NextResponse.json({ error: sErr }, { status: 500 })
   if (fErr) return NextResponse.json({ error: fErr }, { status: 500 })
 
   const tasks = planned ?? []
   const carryOver = carry ?? []
+  const snoozedItems = snoozed ?? []
 
   const pick = (cat: string, src: any[]) => (src ?? []).filter(t => t.category === cat)
   const focus = [1,2,3].map(i => {
@@ -82,6 +91,7 @@ export async function GET(req: NextRequest) {
     today: toISODate(),
     plannedToday: tasks,
     carryOver,
+    snoozedItems,
     // category groupings for convenience in client
     career: pick('career', tasks),
     langpulse: pick('langpulse', tasks),

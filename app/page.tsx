@@ -17,6 +17,7 @@ type Data = {
   today: string
   plannedToday: Task[]
   carryOver: Task[]
+  snoozedItems?: Task[]
   career?: Task[]
   langpulse?: Task[]
   health?: Task[]
@@ -230,6 +231,7 @@ export default function Dashboard() {
                 onDelete={handlers.del}
                 onComplete={async (ids)=>{ await fetch('/api/tasks/bulk', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ids, op:'complete' }) }); await load() }}
                 onAddToTop3={handlers.addToTop3}
+                snoozedItems={data.snoozedItems}
               />
             </section>
             <div className="grid gap-4">
