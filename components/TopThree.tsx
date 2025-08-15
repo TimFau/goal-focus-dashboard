@@ -206,7 +206,7 @@ function Slot({
             >
               Change
             </button>
-            <button className="btn btn-sm btn-backlog" title="Remove from Top 3 and keep for today" onClick={()=>onDemoteToBacklog(slotNum)}>To Today's List</button>
+            <button className="btn btn-sm btn-backlog" title="Remove from Top 3 and keep for today" onClick={()=>onDemoteToBacklog(slotNum)}>To On Deck</button>
             <button className="btn btn-sm" title="Remove from Top 3 and move out of today" onClick={()=>onDemoteToCarry(slotNum)}>To Carry Over</button>
           </div>
         )}

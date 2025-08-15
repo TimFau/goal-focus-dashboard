@@ -207,7 +207,7 @@ export default function CarryOverCard({
                   title={cat === 'keep' ? 'Adds to today and keeps category' : 'Adds to today and changes category'}
                 >
                   <TodayIcon sx={{ fontSize: 16 }} />
-                  Add to Today (Backlog)
+                  Add to Today (On Deck)
                 </button>
 
                 {/* Pin to Top 3 */}
@@ -250,7 +250,7 @@ export default function CarryOverCard({
                 </div>
               </div>
               <div className="text-xs opacity-60">
-                "Add to Today (Backlog)" does not add to Top 3
+                "Add to Today (On Deck)" does not add to Top 3
               </div>
             </div>
           )}
@@ -290,7 +290,7 @@ export default function CarryOverCard({
                         await onPromote([t.id], e.target.value as any, toISODate()); 
                         e.currentTarget.selectedIndex = 0
                       }}
-                      title="Add to today's backlog"
+                      title="Add to today's On Deck"
                     >
                       <option value="">Add to Today</option>
                       <option value="career">→ Career</option>

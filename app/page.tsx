@@ -39,6 +39,8 @@ export default function Dashboard() {
   })
   const [data, setData] = useState<Data | null>(null)
   const [showTop3Modal, setShowTop3Modal] = useState(false)
+  const [onDeckExpanded, setOnDeckExpanded] = useState<boolean>(false)
+  const [initializedOnDeck, setInitializedOnDeck] = useState<boolean>(false)
   
   // Memoize load function to prevent unnecessary re-renders
   const load = useCallback(async () => {
@@ -62,6 +64,23 @@ export default function Dashboard() {
   useEffect(() => { 
     load().catch(()=>{})
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  
+  // Initialize collapsible On Deck per-day state
+  useEffect(() => {
+    const key = 'ondeck.expanded.' + toISODate()
+    const saved = localStorage.getItem(key)
+    if (saved !== null) {
+      setOnDeckExpanded(saved === '1')
+    } else {
+      setOnDeckExpanded(false)
+    }
+    setInitializedOnDeck(true)
+  }, [])
+  useEffect(() => {
+    if (!initializedOnDeck) return
+    const key = 'ondeck.expanded.' + toISODate()
+    localStorage.setItem(key, onDeckExpanded ? '1' : '0')
+  }, [onDeckExpanded, initializedOnDeck])
   
   // Check for URL changes periodically and on navigation events
   useEffect(() => {
@@ -236,23 +255,37 @@ export default function Dashboard() {
                 snoozedItems={data.snoozedItems}
               />
             </section>
-            <div className="grid gap-4">
-              <Droppable id="career">
-                <CategoryList title="Career" accent="backlog" tasks={(data.career ?? []).filter(t=>plannedToday.some(p=>p.id===t.id))}
-                  energy={energy} onToggle={handlers.toggleTask} onAdd={(t)=>handlers.addTask('career', t)} />
-              </Droppable>
-              <Droppable id="langpulse">
-                <CategoryList title="LangPulse" accent="backlog" tasks={(data.langpulse ?? []).filter(t=>plannedToday.some(p=>p.id===t.id))}
-                  energy={energy} onToggle={handlers.toggleTask} onAdd={(t)=>handlers.addTask('langpulse', t)} />
-              </Droppable>
-              <Droppable id="health">
-                <CategoryList title="Health" accent="backlog" tasks={(data.health ?? []).filter(t=>plannedToday.some(p=>p.id===t.id))}
-                  energy={energy} onToggle={handlers.toggleTask} onAdd={(t)=>handlers.addTask('health', t)} />
-              </Droppable>
-              <Droppable id="life">
-                <CategoryList title="Life/Wedding" accent="backlog" tasks={(data.life ?? []).filter(t=>plannedToday.some(p=>p.id===t.id))}
-                  energy={energy} onToggle={handlers.toggleTask} onAdd={(t)=>handlers.addTask('life', t)} />
-              </Droppable>
+            <div className="card p-4">
+              <div className="flex items-center gap-3">
+                <h3 className="font-semibold">On Deck <span className="opacity-60 text-sm">(Optional Wins)</span></h3>
+                <span className="text-xs opacity-70">· {plannedToday.length} {plannedToday.length===1?'item':'items'}</span>
+                <div className="ml-auto">
+                  <button className="btn" onClick={()=>setOnDeckExpanded(!onDeckExpanded)}>{onDeckExpanded ? 'Hide' : 'Show'}</button>
+                </div>
+              </div>
+              {!onDeckExpanded && (
+                <p className="text-xs opacity-60 mt-2">Finish your Top 3 first. Peek when you want more.</p>
+              )}
+              {onDeckExpanded && (
+                <div className="mt-4 grid gap-4">
+                  <Droppable id="career">
+                    <CategoryList title="Career" accent="backlog" tasks={(data.career ?? []).filter(t=>plannedToday.some(p=>p.id===t.id))}
+                      energy={energy} onToggle={handlers.toggleTask} onAdd={(t)=>handlers.addTask('career', t)} />
+                  </Droppable>
+                  <Droppable id="langpulse">
+                    <CategoryList title="LangPulse" accent="backlog" tasks={(data.langpulse ?? []).filter(t=>plannedToday.some(p=>p.id===t.id))}
+                      energy={energy} onToggle={handlers.toggleTask} onAdd={(t)=>handlers.addTask('langpulse', t)} />
+                  </Droppable>
+                  <Droppable id="health">
+                    <CategoryList title="Health" accent="backlog" tasks={(data.health ?? []).filter(t=>plannedToday.some(p=>p.id===t.id))}
+                      energy={energy} onToggle={handlers.toggleTask} onAdd={(t)=>handlers.addTask('health', t)} />
+                  </Droppable>
+                  <Droppable id="life">
+                    <CategoryList title="Life/Wedding" accent="backlog" tasks={(data.life ?? []).filter(t=>plannedToday.some(p=>p.id===t.id))}
+                      energy={energy} onToggle={handlers.toggleTask} onAdd={(t)=>handlers.addTask('life', t)} />
+                  </Droppable>
+                </div>
+              )}
             </div>
           </>
         ) : (
