@@ -204,6 +204,11 @@ const Slot = ({
   const startTimeRef = useRef<number | null>(null);
   const accumulatedMinutesRef = useRef(0);
   const [expanded, setExpanded] = useState(false);
+  const formattedRunningTime = useMemo(() => {
+    const minutes = Math.floor(totalElapsedSeconds / 60);
+    const seconds = totalElapsedSeconds % 60;
+    return `${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+  }, [totalElapsedSeconds]);
   
   // Reset timer when the task in the slot changes
   useEffect(() => {
@@ -348,7 +353,15 @@ const Slot = ({
   
   return (
     <>
-      <div ref={setNodeRef} className={`p-3 rounded-lg border border-white/10 ${isOver ? 'bg-white/10' : 'bg-white/5'}`}>
+      <div
+        ref={setNodeRef}
+        className={`p-3 rounded-lg border ${
+          timerRunning
+            ? 'breathe-bg relative bg-sky-500/10 border-sky-400/30 ring-1 ring-sky-300/20'
+            : 'border-white/10'
+        } ${isOver ? 'bg-white/10' : timerRunning ? '' : 'bg-white/5'}`}
+      >
+        <div className="relative z-10">
         <div className="flex items-center gap-2">
           {isFocusedDone ? (
             <CheckCircleIcon sx={{ fontSize: 24 }} className="text-green-400" aria-label="Done (Focus)" />
@@ -395,9 +408,7 @@ const Slot = ({
               {value.focus_minutes >= targetFocusMinutes && (
                 <CheckIcon sx={{ fontSize: 16 }} className="absolute text-green-400" />
               )}
-              {timerRunning && (
-                <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-green-400 animate-pulse ring-2 ring-green-400/40" aria-hidden="true" />
-              )}
+              {/* Removed small pulsing dot; breathing card animation indicates running state */}
             </div>
           )}
           <div className="flex-1">
@@ -421,6 +432,14 @@ const Slot = ({
               </div>
             )}
           </div>
+          {babautaModeEnabled && value?.task_id && timerRunning && (
+            <span
+              className="ml-1 sm:ml-2 px-1.5 py-0.5 text-[10px] sm:text-xs font-mono rounded bg-sky-300/10 text-sky-200 ring-1 ring-sky-300/20"
+              aria-label={`Elapsed time ${formattedRunningTime}`}
+            >
+              {formattedRunningTime}
+            </span>
+          )}
           {/* Show select button for empty slots or save button for manual entries */}
           {!value?.task_id && (
             <>
@@ -478,7 +497,7 @@ const Slot = ({
                     className={`text-xl font-mono min-w-[3.5rem] ${timerRunning ? 'text-amber-300' : 'opacity-60'}`}
                     aria-label={`Timer: ${Math.floor(totalElapsedSeconds / 60)} minutes ${totalElapsedSeconds % 60} seconds`}
                   >
-                    {Math.floor(totalElapsedSeconds / 60)}:{String(totalElapsedSeconds % 60).padStart(2, '0')}
+                    {String(Math.floor(totalElapsedSeconds / 60)).padStart(2, '0')}:{String(totalElapsedSeconds % 60).padStart(2, '0')}
                   </span>
                   <button 
                     onClick={handleToggleTimer}
@@ -509,6 +528,7 @@ const Slot = ({
             <button className="btn btn-sm" title="Remove from Top 3 and move out of today" onClick={()=>onDemoteToCarry(slotNum)}>Move to Carry Over</button>
           </div>
         )}
+        </div>
       </div>
       
       <TaskSelector
