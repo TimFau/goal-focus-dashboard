@@ -3,7 +3,7 @@ import { createSsrClient } from '@/lib/supabaseSsr'
 
 type FocusPayload = {
   date: string
-  items: Array<{ task_id?: string; free_text?: string } | null>
+  items: Array<{ task_id?: string; free_text?: string; focus_minutes?: number } | null>
 }
 
 export async function POST(req: NextRequest) {

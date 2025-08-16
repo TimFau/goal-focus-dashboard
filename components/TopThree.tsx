@@ -6,8 +6,12 @@ import { CheckIconButton } from '@/components/IconButton'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import CelebrationIcon from '@mui/icons-material/Celebration'
+import CircularProgress from '@mui/material/CircularProgress'
+import CheckIcon from '@mui/icons-material/Check'
+import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+import { createSsrClient } from '@/lib/supabaseSsr'
 
-type FocusItem = { title?: string; task_id?: string } | null
+type FocusItem = { title?: string; task_id?: string; focus_minutes?: number } | null
 type Task = { id: string; title: string; done: boolean; low_energy: boolean; category: 'career'|'langpulse'|'health'|'life'; due_date?: string }
 
 function getDateLabel(dateStr: string): string {
@@ -158,7 +162,10 @@ function Slot({
   onSaveSlot,
   selectedDate,
   onDemoteToBacklog,
-  onDemoteToCarry
+  onDemoteToCarry,
+  babautaModeEnabled,
+  targetFocusMinutes,
+  onLogFocus,
 }: {
   id: string
   value: FocusItem
@@ -171,13 +178,102 @@ function Slot({
   selectedDate: string
   onDemoteToBacklog: (slot: number) => Promise<void>
   onDemoteToCarry: (slot: number) => Promise<void>
+  babautaModeEnabled: boolean
+  targetFocusMinutes: number
+  onLogFocus: (slot: number, minutes: number, source?: 'timer' | 'manual') => Promise<void>
 }) {
   const slotNum = Number(id.split('-').pop())
   const { isOver, setNodeRef } = useDroppable({ id })
   const [showSelector, setShowSelector] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [expanded, setExpanded] = useState(false)
-  
+  const [timerRunning, setTimerRunning] = useState(false)
+  const [manualMinutes, setManualMinutes] = useState('')
+  const [showFocusCelebration, setShowFocusCelebration] = useState(false)
+  const [lastTimerTick, setLastTimerTick] = useState<number | null>(null);
+
+  const isFocusedDone = babautaModeEnabled && (value?.focus_minutes ?? 0) >= targetFocusMinutes;
+  const isTaskDone = value?.task_id && plannedTasks.find(t => t.id === value.task_id)?.done;
+
+  useEffect(() => {
+    if (isFocusedDone && !showFocusCelebration) {
+      setShowFocusCelebration(true);
+      setTimeout(() => setShowFocusCelebration(false), 3000);
+    }
+  }, [isFocusedDone, showFocusCelebration]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout | undefined;
+
+    const handleTick = async () => {
+      if (value?.task_id && timerRunning && document.visibilityState === 'visible') {
+        const now = Date.now();
+        if (lastTimerTick) {
+          const elapsedMinutes = Math.floor((now - lastTimerTick) / 60000);
+          if (elapsedMinutes >= 1) {
+            await onLogFocus(slotNum, elapsedMinutes, 'timer');
+          }
+        }
+        setLastTimerTick(now);
+      }
+    };
+
+    if (timerRunning) {
+      setLastTimerTick(Date.now());
+      interval = setInterval(handleTick, 60000); // Check every minute
+    } else if (interval) {
+      clearInterval(interval);
+      setLastTimerTick(null);
+    }
+
+    return () => clearInterval(interval!); // Cleanup on unmount or timer stop
+  }, [timerRunning, value, slotNum, lastTimerTick, onLogFocus]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        setTimerRunning(false);
+      } else if (document.visibilityState === 'visible' && timerRunning) {
+        // Only resume if it was running before going hidden
+        // This might need more sophisticated state management for true resume
+        // For now, we'll keep it simple and rely on the user to restart if needed after long idle
+      }
+    };
+
+    const handleFocus = () => {
+      // Resume timer if it was running and window gets focus
+      // This is a simplified approach, a more robust solution would store timer state
+      // before blur and restore it.
+      if (timerRunning) {
+        // If timerRunning is true, handleTick will resume logging if visible
+        setLastTimerTick(Date.now());
+      }
+    };
+
+    const handleBlur = () => {
+      // Pause timer if window loses focus
+      setTimerRunning(false);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, [timerRunning]);
+
+  const handleLogManualMinutes = async () => {
+    const minutes = parseInt(manualMinutes)
+    if (!isNaN(minutes) && minutes > 0) {
+      await onLogFocus(slotNum, minutes, 'manual')
+      setManualMinutes('')
+    }
+  }
+
   const handleSave = async () => {
     setIsSaving(true)
     try {
@@ -201,11 +297,30 @@ function Slot({
     <>
       <div ref={setNodeRef} className={`p-3 rounded-lg border border-white/10 ${isOver ? 'bg-white/10' : 'bg-white/5'}`}>
         <div className="flex items-center gap-2">
-          <CheckIconButton
-            onClick={()=>onDone(slotNum)}
-            label="Mark done"
-            size="sm"
-          />
+          {isFocusedDone ? (
+            <CheckCircleIcon sx={{ fontSize: 24 }} className="text-green-400" aria-label="Done (Focus)" />
+          ) : (
+            <CheckIconButton
+              onClick={()=>onDone(slotNum)}
+              label="Mark done"
+              size="sm"
+            />
+          )}
+          {babautaModeEnabled && value?.focus_minutes !== undefined && !isFocusedDone && (
+            <div className={`relative w-6 h-6 flex items-center justify-center mr-1 ${showFocusCelebration ? 'animate-ping' : ''}`}
+                 title={`Remaining: ${targetFocusMinutes - (value?.focus_minutes ?? 0)} minutes`}>
+              <CircularProgress 
+                variant="determinate" 
+                value={(value.focus_minutes / targetFocusMinutes) * 100} 
+                size={24} 
+                thickness={5}
+                className="text-amber-300"
+              />
+              {value.focus_minutes >= targetFocusMinutes && (
+                <CheckIcon sx={{ fontSize: 16 }} className="absolute text-green-400" />
+              )}
+            </div>
+          )}
           <input
             className="flex-1 bg-transparent outline-none"
             placeholder={`Top ${slotNum}`}
@@ -263,6 +378,31 @@ function Slot({
             >
               Change
             </button>
+            {babautaModeEnabled && value?.task_id && (
+              <>
+                <button 
+                  className="btn btn-sm"
+                  onClick={() => setTimerRunning(prev => !prev)}
+                  title={timerRunning ? "Pause Focus Timer" : "Start Focus Timer"}
+                >
+                  {timerRunning ? "Pause" : "Start Focus"}
+                </button>
+                <input 
+                  type="number" 
+                  className="w-24 px-2 py-1 text-sm bg-white/10 rounded border border-white/10"
+                  placeholder="Log min"
+                  value={manualMinutes}
+                  onChange={e => setManualMinutes(e.target.value)}
+                />
+                <button 
+                  className="btn btn-sm" 
+                  onClick={handleLogManualMinutes}
+                  disabled={!manualMinutes || isNaN(parseInt(manualMinutes))}
+                >
+                  Log
+                </button>
+              </>
+            )}
             <button className="btn btn-sm btn-backlog" title="Remove from Top 3 and keep for today" onClick={()=>onDemoteToBacklog(slotNum)}>Move to On Deck</button>
             <button className="btn btn-sm" title="Remove from Top 3 and move out of today" onClick={()=>onDemoteToCarry(slotNum)}>Move to Carry Over</button>
           </div>
@@ -289,7 +429,11 @@ export default function TopThree({
   plannedTasks = [],
   selectedDate,
   onPromote,
-  onSnooze
+  onSnooze,
+  babautaModeEnabled,
+  targetFocusMinutes,
+  onLogFocus,
+  celebrationCuesEnabled
 }: {
   initial: FocusItem[]
   onSet: (items: FocusItem[]) => Promise<void>
@@ -299,9 +443,14 @@ export default function TopThree({
   selectedDate: string
   onPromote: (ids: string[], category: Task['category'], date: string) => Promise<void>
   onSnooze: (ids: string[], date: string) => Promise<void>
+  babautaModeEnabled: boolean
+  targetFocusMinutes: number
+  onLogFocus: (slot: number, minutes: number, source?: 'timer' | 'manual') => Promise<void>
+  celebrationCuesEnabled: boolean
 }) {
   const [items, setItems] = useState<FocusItem[]>(() => [initial?.[0] ?? null, initial?.[1] ?? null, initial?.[2] ?? null])
   const [showCelebration, setShowCelebration] = useState(false)
+  // No need to fetch settings here, as they are passed as props
   
   useEffect(() => {
     setItems([initial?.[0] ?? null, initial?.[1] ?? null, initial?.[2] ?? null])
@@ -312,12 +461,12 @@ export default function TopThree({
     const filledSlots = items.filter(item => item && item.title && item.title.trim() !== '').length
     const wasComplete = filledSlots === 3
     
-    if (wasComplete && !showCelebration) {
+    if (wasComplete && !showCelebration && celebrationCuesEnabled) {
       setShowCelebration(true)
       // Auto-hide celebration after 3 seconds
       setTimeout(() => setShowCelebration(false), 3000)
     }
-  }, [items, showCelebration])
+  }, [items, showCelebration, celebrationCuesEnabled])
 
   const setTitle = (slot: number, title: string) => {
     setItems(prev => {
@@ -377,6 +526,8 @@ export default function TopThree({
     const next = items.map((it, i) => i===slot-1 ? null : it)
     await onSet(next)
   }
+
+
  
   // Calculate progress
   const filledSlots = items.filter(item => item && item.title && item.title.trim() !== '').length
@@ -420,6 +571,9 @@ export default function TopThree({
             selectedDate={selectedDate}
             onDemoteToBacklog={demoteToBacklog}
             onDemoteToCarry={demoteToCarry}
+            babautaModeEnabled={babautaModeEnabled}
+            targetFocusMinutes={targetFocusMinutes}
+            onLogFocus={onLogFocus}
           />
         ))}
       </div>

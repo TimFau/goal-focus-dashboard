@@ -38,6 +38,8 @@ export default function CarryOverCard({
   onComplete,    // (ids) => Promise<void>
   onAddToTop3,   // (ids) => Promise<void>
   snoozedItems,  // tasks with future due dates
+  autoHideOnFocusDone,
+  isTop3FocusedDone,
 }: {
   items: Task[]
   onPromote: (ids: string[], category: Task['category'], date: string) => Promise<void>
@@ -46,6 +48,8 @@ export default function CarryOverCard({
   onComplete: (ids: string[]) => Promise<void>
   onAddToTop3: (ids: string[]) => Promise<void>
   snoozedItems?: Task[]
+  autoHideOnFocusDone: boolean
+  isTop3FocusedDone: boolean
 }) {
   const [expanded, setExpanded] = useState<boolean>(false)
   const [selected, setSelected] = useState<Record<string, boolean>>({})
@@ -57,6 +61,11 @@ export default function CarryOverCard({
 
   // Persist collapse state per day; optionally auto-open once/day if many items
   useEffect(() => {
+    if (autoHideOnFocusDone && isTop3FocusedDone) {
+      setExpanded(false);
+      return;
+    }
+
     const dayKey = toISODate(new Date())
     const collapseKey = 'carry.collapse.' + dayKey
     const triageKey = 'triage.done.' + dayKey

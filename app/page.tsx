@@ -9,10 +9,14 @@ import CarryOverCard from '@/components/CarryOverCard'
 import TopThreeModal from '@/components/TopThreeModal'
 import { DndProvider, Droppable } from '@/components/DnD'
 import type { DragEndEvent } from '@dnd-kit/core'
+import { createSsrClient } from '@/lib/supabaseSsr'
+import CircularProgress from '@mui/material/CircularProgress'
+import { addDays } from '@/lib/date'
 
-type Task = { id: string; title: string; done: boolean; low_energy: boolean; category: 'career'|'langpulse'|'health'|'life'; due_date?: string }
+type Task = { id: string; title: string; done: boolean; low_energy: boolean; category: 'career'|'langpulse'|'health'|'life'; due_date?: string; focus_minutes?: number }
+type FocusItem = { title?: string; task_id?: string; focus_minutes?: number } | null
 type Data = {
-  focus: Array<{ title?: string; task_id?: string } | null>
+  focus: Array<FocusItem>
   view: 'planned' | 'all'
   today: string
   plannedToday: Task[]
@@ -22,12 +26,64 @@ type Data = {
   langpulse?: Task[]
   health?: Task[]
   life?: Task[]
+  babautaModeEnabled: boolean
+  top3FocusTargetMinutes: number
+  celebrationCuesEnabled: boolean
+  autoHideCarryOverOnFocusDone: boolean
+  allTasksWithFocus?: Task[]
 }
+
+// New filter types for All view
+type AllViewFilter = 'all' | 'today' | 'this_week' | 'no_date' | 'low_energy';
 
 async function fetchDashboard(date: string, view: 'planned'|'all'): Promise<Data> {
   const res = await fetch(`/api/dashboard?date=${date}&view=${view}`, { cache: 'no-store' })
   if (!res.ok) throw new Error('Failed')
-  return res.json()
+  const data: any = await res.json()
+  // Merge focus_minutes from daily_focus and task_focus_log into tasks
+  const tasksWithFocus = (data.plannedToday || []).map((task: Task) => {
+    const focusEntry = data.focus.find((f: FocusItem) => f?.task_id === task.id);
+    return { ...task, focus_minutes: focusEntry?.focus_minutes || 0 };
+  });
+  const carryOverWithFocus = (data.carryOver || []).map((task: Task) => {
+    const focusEntry = data.focus.find((f: FocusItem) => f?.task_id === task.id);
+    return { ...task, focus_minutes: focusEntry?.focus_minutes || 0 };
+  });
+  const careerWithFocus = (data.career || []).map((task: Task) => {
+    const focusEntry = data.focus.find((f: FocusItem) => f?.task_id === task.id);
+    return { ...task, focus_minutes: focusEntry?.focus_minutes || 0 };
+  });
+  const langpulseWithFocus = (data.langpulse || []).map((task: Task) => {
+    const focusEntry = data.focus.find((f: FocusItem) => f?.task_id === task.id);
+    return { ...task, focus_minutes: focusEntry?.focus_minutes || 0 };
+  });
+  const healthWithFocus = (data.health || []).map((task: Task) => {
+    const focusEntry = data.focus.find((f: FocusItem) => f?.task_id === task.id);
+    return { ...task, focus_minutes: focusEntry?.focus_minutes || 0 };
+  });
+  const lifeWithFocus = (data.life || []).map((task: Task) => {
+    const focusEntry = data.focus.find((f: FocusItem) => f?.task_id === task.id);
+    return { ...task, focus_minutes: focusEntry?.focus_minutes || 0 };
+  });
+  const allTasksWithFocus = [
+    ...tasksWithFocus,
+    ...carryOverWithFocus,
+    ...careerWithFocus,
+    ...langpulseWithFocus,
+    ...healthWithFocus,
+    ...lifeWithFocus,
+  ];
+
+  return { 
+    ...data, 
+    plannedToday: tasksWithFocus,
+    carryOver: carryOverWithFocus,
+    career: careerWithFocus,
+    langpulse: langpulseWithFocus,
+    health: healthWithFocus,
+    life: lifeWithFocus,
+    allTasksWithFocus
+  }
 }
 
 export default function Dashboard() {
@@ -42,6 +98,7 @@ export default function Dashboard() {
   const [showTop3Modal, setShowTop3Modal] = useState(false)
   const [onDeckExpanded, setOnDeckExpanded] = useState<boolean>(false)
   const [initializedOnDeck, setInitializedOnDeck] = useState<boolean>(false)
+  const [allViewFilter, setAllViewFilter] = useState<AllViewFilter>('all'); // New state for All view filter
   
   // Memoize load function to prevent unnecessary re-renders
   const load = useCallback(async () => {
@@ -56,7 +113,7 @@ export default function Dashboard() {
     const allBlank = !(payload.focus?.[0]?.title || payload.focus?.[1]?.title || payload.focus?.[2]?.title)
     const key = 'top3.prompt.'+toISODate()
     const prompted = localStorage.getItem(key) === '1'
-    if (allBlank && !prompted) {
+    if (allBlank && !prompted && payload.babautaModeEnabled) { // Only prompt if babauta mode is enabled
       setShowTop3Modal(true)
       localStorage.setItem(key, '1')
     }
@@ -108,7 +165,7 @@ export default function Dashboard() {
   }, [date, view, load]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlers = {
-    async setFocus(items: Array<{ title?: string; task_id?: string } | null>) {
+    async setFocus(items: Array<FocusItem>) {
       const payload = items.map(i => i ? ({ task_id: i.task_id, free_text: i.title && !i.task_id ? i.title : undefined }) : null)
       await fetch('/api/focus', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ date, items: payload }) })
       await load()
@@ -159,9 +216,10 @@ export default function Dashboard() {
       allTasks.forEach(t => { byId[t.id] = t })
 
       // Start with current focus from server (preserve task links)
-      const current: Array<{ title?: string; task_id?: string } | null> = [0,1,2].map(i => ({
+      const current: Array<FocusItem> = [0,1,2].map(i => ({
         title: (data.focus?.[i] as any)?.title ?? '',
-        task_id: (data.focus?.[i] as any)?.task_id
+        task_id: (data.focus?.[i] as any)?.task_id,
+        focus_minutes: (data.focus?.[i] as any)?.focus_minutes
       }))
 
       // Fill available slots with selected tasks (in order), without overwriting existing non-empty slots
@@ -172,11 +230,29 @@ export default function Dashboard() {
         if (slotIndex >= 3) break
         const task = byId[id]
         if (task) {
-          current[slotIndex] = { title: task.title, task_id: task.id }
+          current[slotIndex] = { title: task.title, task_id: task.id, focus_minutes: 0 }
           slotIndex++
         }
       }
       await handlers.setFocus(current)
+    },
+    async logFocus(slot: number, minutes: number, source?: 'timer' | 'manual') {
+      if (!data?.focus) return
+      const item = data.focus[slot-1]
+      if (!item?.task_id) return
+
+      // Log focus to backend
+      await fetch('/api/focus-log', { 
+        method:'POST', 
+        headers:{'Content-Type':'application/json'}, 
+        body: JSON.stringify({ 
+          date: date, 
+          taskId: item.task_id,
+          minutes: minutes,
+          source: source 
+        }) 
+      })
+      await load() // Reload data to reflect updated focus minutes
     }
   }
 
@@ -186,6 +262,9 @@ export default function Dashboard() {
   const carryOver = filterByEnergy(data.carryOver || [])
   const plannedToday = filterByEnergy(data.plannedToday || [])
 
+  const isTop3FocusedDone = data.babautaModeEnabled && 
+                            data.focus.every(item => item && (item.focus_minutes ?? 0) >= data.top3FocusTargetMinutes);
+
   const onDragEnd = async (e: DragEndEvent) => {
     const task = e.active?.data?.current?.task as Task | undefined
     const target = e.over?.id as string | undefined
@@ -194,11 +273,12 @@ export default function Dashboard() {
     if (target.startsWith('top3-slot-')) {
       const slotNum = Number(target.split('-').pop())
       // Update Top 3 with this task and auto-save, preserving existing task links
-      const current: Array<{ title?: string; task_id?: string } | null> = [0,1,2].map(i => ({
+      const current: Array<FocusItem> = [0,1,2].map(i => ({
         title: (data.focus?.[i] as any)?.title ?? '',
-        task_id: (data.focus?.[i] as any)?.task_id
+        task_id: (data.focus?.[i] as any)?.task_id,
+        focus_minutes: (data.focus?.[i] as any)?.focus_minutes
       }))
-      current[slotNum-1] = { title: task.title, task_id: task.id }
+      current[slotNum-1] = { title: task.title, task_id: task.id, focus_minutes: 0 }
       await handlers.setFocus(current)
       return
     }
@@ -208,6 +288,15 @@ export default function Dashboard() {
       await handlers.promote([task.id], target as any, toISODate())
     }
   }
+
+  const groupedTasks = (data.allTasksWithFocus ?? []).reduce((acc: Record<string, Task[]>, task) => {
+    const dateKey = task.due_date || 'no_date';
+    if (!acc[dateKey]) {
+      acc[dateKey] = [];
+    }
+    acc[dateKey].push(task);
+    return acc;
+  }, {});
 
   return (
     <DndProvider onDragEnd={onDragEnd}>
@@ -232,6 +321,10 @@ export default function Dashboard() {
           selectedDate={date}
           onPromote={handlers.promote}
           onSnooze={handlers.snooze}
+          babautaModeEnabled={data.babautaModeEnabled}
+          targetFocusMinutes={data.top3FocusTargetMinutes}
+          onLogFocus={handlers.logFocus}
+          celebrationCuesEnabled={data.celebrationCuesEnabled}
         />
 
         <TopThreeModal
@@ -254,6 +347,8 @@ export default function Dashboard() {
                 onComplete={async (ids)=>{ await fetch('/api/tasks/bulk', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ids, op:'complete' }) }); await load() }}
                 onAddToTop3={handlers.addToTop3}
                 snoozedItems={data.snoozedItems}
+                autoHideOnFocusDone={data.autoHideCarryOverOnFocusDone}
+                isTop3FocusedDone={isTop3FocusedDone}
               />
             </section>
             <div className="card p-4">
@@ -270,20 +365,52 @@ export default function Dashboard() {
               {onDeckExpanded && (
                 <div className="mt-4 grid gap-4">
                   <Droppable id="career">
-                    <CategoryList title="Career" accent="backlog" tasks={(data.career ?? []).filter(t=>plannedToday.some(p=>p.id===t.id))}
-                      energy={energy} onToggle={handlers.toggleTask} onAdd={(t)=>handlers.addTask('career', t)} />
+                    <CategoryList 
+                      title="Career" 
+                      accent="backlog" 
+                      tasks={(data.career ?? []).filter(t=>plannedToday.some(p=>p.id===t.id))}
+                      energy={energy} 
+                      onToggle={handlers.toggleTask} 
+                      onAdd={(t)=>handlers.addTask('career', t)}
+                      babautaModeEnabled={data.babautaModeEnabled}
+                      top3FocusTargetMinutes={data.top3FocusTargetMinutes}
+                    />
                   </Droppable>
                   <Droppable id="langpulse">
-                    <CategoryList title="LangPulse" accent="backlog" tasks={(data.langpulse ?? []).filter(t=>plannedToday.some(p=>p.id===t.id))}
-                      energy={energy} onToggle={handlers.toggleTask} onAdd={(t)=>handlers.addTask('langpulse', t)} />
+                    <CategoryList 
+                      title="LangPulse" 
+                      accent="backlog" 
+                      tasks={(data.langpulse ?? []).filter(t=>plannedToday.some(p=>p.id===t.id))}
+                      energy={energy} 
+                      onToggle={handlers.toggleTask} 
+                      onAdd={(t)=>handlers.addTask('langpulse', t)}
+                      babautaModeEnabled={data.babautaModeEnabled}
+                      top3FocusTargetMinutes={data.top3FocusTargetMinutes}
+                    />
                   </Droppable>
                   <Droppable id="health">
-                    <CategoryList title="Health" accent="backlog" tasks={(data.health ?? []).filter(t=>plannedToday.some(p=>p.id===t.id))}
-                      energy={energy} onToggle={handlers.toggleTask} onAdd={(t)=>handlers.addTask('health', t)} />
+                    <CategoryList 
+                      title="Health" 
+                      accent="backlog" 
+                      tasks={(data.health ?? []).filter(t=>plannedToday.some(p=>p.id===t.id))}
+                      energy={energy} 
+                      onToggle={handlers.toggleTask} 
+                      onAdd={(t)=>handlers.addTask('health', t)}
+                      babautaModeEnabled={data.babautaModeEnabled}
+                      top3FocusTargetMinutes={data.top3FocusTargetMinutes}
+                    />
                   </Droppable>
                   <Droppable id="life">
-                    <CategoryList title="Life/Wedding" accent="backlog" tasks={(data.life ?? []).filter(t=>plannedToday.some(p=>p.id===t.id))}
-                      energy={energy} onToggle={handlers.toggleTask} onAdd={(t)=>handlers.addTask('life', t)} />
+                    <CategoryList 
+                      title="Life/Wedding" 
+                      accent="backlog" 
+                      tasks={(data.life ?? []).filter(t=>plannedToday.some(p=>p.id===t.id))}
+                      energy={energy} 
+                      onToggle={handlers.toggleTask} 
+                      onAdd={(t)=>handlers.addTask('life', t)}
+                      babautaModeEnabled={data.babautaModeEnabled}
+                      top3FocusTargetMinutes={data.top3FocusTargetMinutes}
+                    />
                   </Droppable>
                 </div>
               )}
@@ -294,23 +421,67 @@ export default function Dashboard() {
             <div className="card p-4">
               <h3 className="font-semibold mb-2">All Active (incomplete)</h3>
               <p className="text-sm opacity-70 mb-3">Everything not done, sorted by date.</p>
-              <ul className="space-y-2">
-                {[...(data.career ?? []), ...(data.langpulse ?? []), ...(data.health ?? []), ...(data.life ?? [])]
-                  .filter(t => (energy==='all' ? true : t.low_energy))
-                  .sort((a,b)=>(a.due_date??'').localeCompare(b.due_date??''))
-                  .map(t => (
-                    <li key={t.id} className="flex items-center gap-3">
-                      <input className="chk" type="checkbox" checked={t.done} onChange={e=>handlers.toggleTask(t.id, e.target.checked)} />
-                      <span className={t.done ? 'line-through opacity-50' : ''}>{t.title}</span>
-                      <span className="ml-auto text-xs opacity-60">{t.category} · {t.due_date}</span>
-                    </li>
-                  ))
-                }
-              </ul>
+              
+              <div className="mb-4 flex items-center gap-2">
+                <span className="text-sm opacity-70 mr-1">Filter:</span>
+                <div className="inline-flex overflow-hidden rounded-md border border-white/10">
+                  <button className={`px-3 py-1 text-xs ${allViewFilter === 'all' ? 'bg-white/10' : ''}`} onClick={() => setAllViewFilter('all')}>All</button>
+                  <button className={`px-3 py-1 text-xs ${allViewFilter === 'today' ? 'bg-white/10' : ''}`} onClick={() => setAllViewFilter('today')}>Today</button>
+                  <button className={`px-3 py-1 text-xs ${allViewFilter === 'this_week' ? 'bg-white/10' : ''}`} onClick={() => setAllViewFilter('this_week')}>This Week</button>
+                  <button className={`px-3 py-1 text-xs ${allViewFilter === 'no_date' ? 'bg-white/10' : ''}`} onClick={() => setAllViewFilter('no_date')}>No Date</button>
+                  <button className={`px-3 py-1 text-xs ${allViewFilter === 'low_energy' ? 'bg-white/10' : ''}`} onClick={() => setAllViewFilter('low_energy')}>Low Energy</button>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {Object.entries(groupedTasks).map(([dateLabel, tasks]) => (
+                  <div key={dateLabel}>
+                    <h4 className="sticky top-0 bg-gray-900 z-10 py-2 font-semibold flex items-center gap-2">
+                      {dateLabel === 'no_date' ? 'No Date' : getDateLabel(dateLabel)}
+                      <span className="text-xs opacity-60">({tasks.length})</span>
+                    </h4>
+                    <ul className="space-y-2 mt-2">
+                      {tasks.map(t => (
+                        <li key={t.id} className="flex items-center gap-3 p-2 rounded hover:bg-white/5">
+                          <input className="chk" type="checkbox" checked={t.done} onChange={e=>handlers.toggleTask(t.id, e.target.checked)} />
+                          <span className={t.done ? 'line-through opacity-50' : ''}>{t.title}</span>
+                          <span className="ml-auto text-xs opacity-60">{t.category}</span>
+                          {data.babautaModeEnabled && t.focus_minutes !== undefined && t.focus_minutes > 0 && (
+                            <span className="flex items-center gap-1 text-xs opacity-60">
+                              <CircularProgress 
+                                variant="determinate" 
+                                value={(t.focus_minutes / data.top3FocusTargetMinutes) * 100} 
+                                size={16} 
+                                thickness={4}
+                                className="text-amber-300"
+                              />
+                              {t.focus_minutes}m
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
             </div>
           </>
         )}
       </main>
     </DndProvider>
   )
+}
+
+function getDateLabel(dateStr: string): string {
+  const today = toISODate()
+  const tomorrow = toISODate(addDays(new Date(), 1))
+  const yesterday = toISODate(addDays(new Date(), -1))
+
+  if (dateStr === today) return "Today"
+  if (dateStr === tomorrow) return "Tomorrow"
+  if (dateStr === yesterday) return "Yesterday"
+
+  const date = new Date(dateStr)
+  const options: Intl.DateTimeFormatOptions = { weekday: 'short', month: 'short', day: 'numeric' }
+  return date.toLocaleDateString('en-US', options)
 }

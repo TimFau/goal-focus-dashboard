@@ -1,5 +1,5 @@
 'use client'
-type Task = { id: string; title: string; done: boolean; low_energy: boolean }
+type Task = { id: string; title: string; done: boolean; low_energy: boolean; focus_minutes?: number }
 type Props = {
   title: string
   tasks: Task[]
@@ -7,11 +7,14 @@ type Props = {
   onAdd: (title: string) => Promise<void>
   energy: 'all'|'low'
   accent?: 'backlog' | 'default'
+  babautaModeEnabled: boolean
+  top3FocusTargetMinutes: number
 }
 import { useState, useMemo } from 'react'
 import { CheckIconButton } from '@/components/IconButton'
+import CircularProgress from '@mui/material/CircularProgress'
 
-export default function CategoryList({title, tasks, onToggle, onAdd, energy, accent = 'default'}: Props) {
+export default function CategoryList({title, tasks, onToggle, onAdd, energy, accent = 'default', babautaModeEnabled, top3FocusTargetMinutes}: Props) {
   const [adding, setAdding] = useState('')
   const filtered = useMemo(()=> energy==='all' ? tasks : tasks.filter(t=>t.low_energy), [tasks, energy])
   const add = async () => {
@@ -28,6 +31,18 @@ export default function CategoryList({title, tasks, onToggle, onAdd, energy, acc
             <CheckIconButton aria-label={t.done ? 'Mark task as not done' : 'Mark task as done'} title={t.done ? 'Mark task as not done' : 'Mark task as done'} onClick={()=>onToggle(t.id, !t.done)} />
             <label className={t.done ? 'line-through opacity-50' : ''}>{t.title}</label>
             {t.low_energy && <span className="ml-auto text-xs opacity-60">low</span>}
+            {babautaModeEnabled && t.focus_minutes !== undefined && t.focus_minutes > 0 && (
+              <span className="ml-auto flex items-center gap-1 text-xs opacity-60">
+                <CircularProgress 
+                  variant="determinate" 
+                  value={(t.focus_minutes / top3FocusTargetMinutes) * 100} 
+                  size={16} 
+                  thickness={4}
+                  className="text-amber-300"
+                />
+                {t.focus_minutes}m
+              </span>
+            )}
           </li>
         ))}
       </ul>

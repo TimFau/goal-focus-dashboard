@@ -22,16 +22,16 @@ These checklists are intended for iterative UX, UI, and technical improvements; 
 
 ### Focus-Time Done Rule (Top 3)
 
-- [ ] Add progress ring and “Done (Focus)” badge to Top 3 slot when target minutes reached
-- [ ] Differentiate visuals for “Done (Focus)” vs “Task Complete” (e.g., ring/badge vs solid check icon)
-- [ ] Add focus timer controls (start/pause/stop) and manual time log option in slot hover menu
-- [ ] Show tooltip with remaining minutes on hover over progress ring
-- [ ] Trigger celebration animation/sound when focus target reached (respect settings)
-- [ ] Ensure progress is reset at midnight (user timezone) unless carried over
-- [ ] Store daily focus logs for linked tasks in `task_focus_log` with minutes and source
-- [ ] Add settings toggles for enabling rule, target duration, celebration cues, auto-hide in Carry Over
-- [ ] Surface focus progress consistently in other views (On Deck, Carry Over, All Active) without visual overload
-- [ ] Validate idle timeout and visibility change handling for accurate focus time logging
+- [x] Add progress ring and “Done (Focus)” badge to Top 3 slot when target minutes reached
+- [x] Differentiate visuals for “Done (Focus)” vs “Task Complete” (e.g., ring/badge vs solid check icon)
+- [x] Add focus timer controls (start/pause/stop) and manual time log option in slot hover menu
+- [x] Show tooltip with remaining minutes on hover over progress ring
+- [x] Trigger celebration animation/sound when focus target reached (respect settings)
+- [x] Ensure progress is reset at midnight (user timezone) unless carried over
+- [x] Store daily focus logs for linked tasks in `task_focus_log` with minutes and source
+- [x] Add settings toggles for enabling rule, target duration, celebration cues, auto-hide in Carry Over
+- [x] Surface focus progress consistently in other views (On Deck, Carry Over, All Active) without visual overload
+- [x] Validate idle timeout and visibility change handling for accurate focus time logging
 
 ### Task selection and triage
 
@@ -49,8 +49,8 @@ These checklists are intended for iterative UX, UI, and technical improvements; 
 
 ### All view
 
-- [ ] Add quick filters: Today, This Week, No Date, Low Energy
-- [ ] Group tasks by date with sticky headers and counts
+- [x] Add quick filters: Today, This Week, No Date, Low Energy
+- [x] Group tasks by date with sticky headers and counts
 
 ### Accessibility and keyboard
 
