@@ -10,6 +10,8 @@ import CircularProgress from '@mui/material/CircularProgress'
 import CheckIcon from '@mui/icons-material/Check'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import { createSsrClient } from '@/lib/supabaseSsr'
+import PlayArrowIcon from '@mui/icons-material/PlayArrow'
+import PauseIcon from '@mui/icons-material/Pause'
 
 type FocusItem = { title?: string; task_id?: string; focus_minutes?: number } | null
 type Task = { id: string; title: string; done: boolean; low_energy: boolean; category: 'career'|'langpulse'|'health'|'life'; due_date?: string }
@@ -166,6 +168,9 @@ interface SlotProps {
   babautaModeEnabled: boolean;
   targetFocusMinutes: number;
   onLogFocus: (slot: number, minutes: number, source?: 'timer' | 'manual') => Promise<void>;
+  runningSlot: number | null;
+  onSetRunningSlot: (slot: number | null) => void;
+  onFocusSlot: (slot: number) => void;
 }
 
 const Slot = ({ 
@@ -183,6 +188,9 @@ const Slot = ({
   babautaModeEnabled,
   targetFocusMinutes,
   onLogFocus,
+  runningSlot,
+  onSetRunningSlot,
+  onFocusSlot,
 }: SlotProps) => {
   const slotNum = Number(id.split('-').pop())
   const { isOver, setNodeRef } = useDroppable({ id })
@@ -283,6 +291,34 @@ const Slot = ({
     }
   };
 
+  // Keep this slot in sync with the globally running slot so only one timer runs at a time
+  useEffect(() => {
+    if (!value?.task_id) return;
+    if (runningSlot === slotNum) {
+      if (!timerRunning) {
+        setTimerRunning(true);
+        setTotalElapsedSeconds(0);
+        accumulatedMinutesRef.current = 0;
+      }
+    } else if (timerRunning) {
+      (async () => {
+        await handlePauseFocus();
+      })();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runningSlot]);
+
+  const handleToggleTimer = async () => {
+    if (!value?.task_id) return;
+    onFocusSlot(slotNum);
+    if (timerRunning) {
+      await handlePauseFocus();
+      onSetRunningSlot(null);
+    } else {
+      onSetRunningSlot(slotNum);
+    }
+  };
+
   const handleLogManualMinutes = async () => {
     const minutes = parseInt(manualMinutes)
     if (!isNaN(minutes) && minutes > 0) {
@@ -324,27 +360,67 @@ const Slot = ({
             />
           )}
           {babautaModeEnabled && value?.focus_minutes !== undefined && !isFocusedDone && (
-            <div className={`relative w-6 h-6 flex items-center justify-center mr-1 ${showFocusCelebration ? 'animate-ping' : ''}`}
-                 title={`Remaining: ${targetFocusMinutes - (value?.focus_minutes ?? 0)} minutes`}>
+            <div
+              className={`relative w-6 h-6 flex items-center justify-center mr-1 ${showFocusCelebration ? 'animate-ping' : ''} ${value?.task_id ? 'cursor-pointer' : ''}`}
+              title={`${timerRunning ? 'Pause timer' : 'Start timer'} · Remaining ${(targetFocusMinutes - (value?.focus_minutes ?? 0))} min`}
+              role={value?.task_id ? 'button' : undefined}
+              tabIndex={value?.task_id ? 0 : -1}
+              onClick={handleToggleTimer}
+              onKeyDown={(e)=>{ if ((e.key==='Enter'||e.key===' ') && value?.task_id) { e.preventDefault(); handleToggleTimer(); } }}
+              aria-pressed={timerRunning}
+            >
+              {/* Secondary, lighter ring shows seconds within the current minute */
+              }
+              {timerRunning && (
+                <CircularProgress 
+                  variant="determinate" 
+                  value={((totalElapsedSeconds % 60) / 60) * 100}
+                  size={24} 
+                  thickness={2.5}
+                  className="text-white/40 absolute"
+                />
+              )}
               <CircularProgress 
                 variant="determinate" 
-                value={(value.focus_minutes / targetFocusMinutes) * 100} 
+                value={100} 
                 size={24} 
                 thickness={5}
-                className="text-amber-300"
+                className={timerRunning ? 'text-sky-300' : 'text-amber-300'}
               />
+              {timerRunning ? (
+                <PauseIcon sx={{ fontSize: 14 }} className="absolute opacity-90" />
+              ) : (
+                <PlayArrowIcon sx={{ fontSize: 14 }} className="absolute opacity-90" />
+              )}
               {value.focus_minutes >= targetFocusMinutes && (
                 <CheckIcon sx={{ fontSize: 16 }} className="absolute text-green-400" />
               )}
+              {timerRunning && (
+                <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-green-400 animate-pulse ring-2 ring-green-400/40" aria-hidden="true" />
+              )}
             </div>
           )}
-          <input
-            className="flex-1 bg-transparent outline-none"
-            placeholder={`Top ${slotNum}`}
-            value={value?.title ?? ''}
-            onChange={e=>onChange(slotNum, e.target.value)}
-            onKeyDown={handleKeyDown}
-          />
+          <div className="flex-1">
+            <input
+              className="bg-transparent outline-none w-full"
+              placeholder={`Top ${slotNum}`}
+              value={value?.title ?? ''}
+              onChange={e=>onChange(slotNum, e.target.value)}
+              onFocus={()=>onFocusSlot(slotNum)}
+              onKeyDown={handleKeyDown}
+            />
+            {babautaModeEnabled && value?.focus_minutes !== undefined && (
+              <div className="mt-1 flex items-center gap-2">
+                <div className="flex-1 h-1.5 bg-white/10 rounded overflow-hidden">
+                  <div
+                    className={`${isFocusedDone ? 'bg-green-400' : 'bg-amber-300'} h-full`}
+                    style={{ width: `${Math.min(100, (value.focus_minutes / targetFocusMinutes) * 100)}%` }}
+                  />
+                </div>
+                <span className="text-xs opacity-70 whitespace-nowrap">{value.focus_minutes ?? 0}/{targetFocusMinutes} min</span>
+              </div>
+            )}
+          </div>
           {/* Show select button for empty slots or save button for manual entries */}
           {!value?.task_id && (
             <>
@@ -398,29 +474,18 @@ const Slot = ({
             {babautaModeEnabled && value?.task_id && (
               <>
                 <div className="flex items-center gap-2">
-                  {timerRunning ? (
-                    <>
-                      <span 
-                        className="text-xl font-mono min-w-[3.5rem] text-amber-300"
-                        aria-label={`Timer: ${Math.floor(totalElapsedSeconds / 60)} minutes ${totalElapsedSeconds % 60} seconds`}
-                      >
-                        {Math.floor(totalElapsedSeconds / 60)}:{String(totalElapsedSeconds % 60).padStart(2, '0')}
-                      </span>
-                      <button 
-                        onClick={handlePauseFocus}
-                        className="btn btn-sm bg-red-100 hover:bg-red-200 text-red-700"
-                      >
-                        Pause Focus
-                      </button>
-                    </>
-                  ) : (
-                    <button 
-                      onClick={handleStartFocus}
-                      className="btn btn-sm bg-green-100 hover:bg-green-200 text-green-700"
-                    >
-                      Start Focus
-                    </button>
-                  )}
+                  <span 
+                    className={`text-xl font-mono min-w-[3.5rem] ${timerRunning ? 'text-amber-300' : 'opacity-60'}`}
+                    aria-label={`Timer: ${Math.floor(totalElapsedSeconds / 60)} minutes ${totalElapsedSeconds % 60} seconds`}
+                  >
+                    {Math.floor(totalElapsedSeconds / 60)}:{String(totalElapsedSeconds % 60).padStart(2, '0')}
+                  </span>
+                  <button 
+                    onClick={handleToggleTimer}
+                    className={`btn btn-sm w-24 ${timerRunning ? 'bg-red-100 hover:bg-red-200 text-red-700' : 'bg-green-100 hover:bg-green-200 text-green-700'}`}
+                  >
+                    {timerRunning ? 'Pause' : 'Start'}
+                  </button>
                 </div>
                 <div className="flex items-center gap-2">
                   <input 
@@ -487,6 +552,7 @@ export default function TopThree({
 }) {
   const [items, setItems] = useState<FocusItem[]>(() => [initial?.[0] ?? null, initial?.[1] ?? null, initial?.[2] ?? null])
   const [showCelebration, setShowCelebration] = useState(false)
+  const [runningSlot, setRunningSlot] = useState<number | null>(null)
   // No need to fetch settings here, as they are passed as props
   
   useEffect(() => {
@@ -611,6 +677,9 @@ export default function TopThree({
             babautaModeEnabled={babautaModeEnabled}
             targetFocusMinutes={targetFocusMinutes}
             onLogFocus={onLogFocus}
+            runningSlot={runningSlot}
+            onSetRunningSlot={setRunningSlot}
+            onFocusSlot={()=>{}}
           />
         ))}
       </div>
