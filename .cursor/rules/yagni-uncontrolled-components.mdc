@@ -1,0 +1,34 @@
+---
+globs: '**/components/**/*.tsx'
+description: 'Component Design Philosophy: Controlled vs. Uncontrolled'
+---
+
+# Component Design Rule: Prefer Uncontrolled Components (YAGNI)
+
+This rule documents the design decision to favor simple, **uncontrolled** components over more complex **controlled** ones, in adherence with the "You Aren't Gonna Need It" (YAGNI) principle.
+
+## The Principle
+
+Do not implement features or patterns in anticipation of future needs. Build the simplest possible thing that works for the current requirements.
+
+## Application in This Codebase
+
+The `Slot` component within [`components/TopThree.tsx`](mdc:components/TopThree.tsx) serves as the primary example of this rule in action.
+
+### What We Did (And Why)
+
+-   **Initial State**: The component was initially built using a **controlled** pattern, where the parent `TopThree` component managed the `expanded` state of each `Slot`.
+-   **Problem**: There was no current feature (e.g., "accordion mode" or "expand all") that required the parent to have this level of control.
+-   **Refactor (The Fix)**: The component was refactored to an **uncontrolled** pattern.
+    -   Each `Slot` now manages its own `expanded` state using `useState`.
+    -   The parent `TopThree` component was simplified, no longer needing to track the state of its children.
+
+### When to Use a Controlled Component
+
+Only refactor a component to be **controlled** when you have an explicit, immediate feature requirement that makes it necessary. Examples include:
+
+-   A parent form needing to reset the state of its children.
+-   Coordinating the state between multiple child components (e.g., an accordion).
+-   A feature that requires the parent to read the internal state of a child component.
+
+By defaulting to simpler, uncontrolled components, we keep the codebase easier to understand, maintain, and test.

@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import { toISODate, fromISODateLocal, addDays } from '@/lib/date'
 import { CheckIconButton } from '@/components/IconButton'
@@ -151,7 +151,24 @@ function TaskSelector({
   )
 }
 
-function Slot({ 
+interface SlotProps {
+  id: string;
+  value: FocusItem;
+  onChange: (slot: number, title: string) => void;
+  onDone: (slot: number) => void;
+  carryOverTasks: Task[];
+  plannedTasks: Task[];
+  onSelectTask: (slot: number, task: { title: string, task_id: string }) => void;
+  onSaveSlot: (slot: number) => Promise<void>;
+  selectedDate: string;
+  onDemoteToBacklog: (slot: number) => Promise<void>;
+  onDemoteToCarry: (slot: number) => Promise<void>;
+  babautaModeEnabled: boolean;
+  targetFocusMinutes: number;
+  onLogFocus: (slot: number, minutes: number, source?: 'timer' | 'manual') => Promise<void>;
+}
+
+const Slot = ({ 
   id, 
   value, 
   onChange, 
@@ -166,31 +183,31 @@ function Slot({
   babautaModeEnabled,
   targetFocusMinutes,
   onLogFocus,
-}: {
-  id: string
-  value: FocusItem
-  onChange: (slot: number, title: string) => void
-  onDone: (slot: number) => void
-  carryOverTasks: Task[]
-  plannedTasks: Task[]
-  onSelectTask: (slot: number, task: { title: string, task_id: string }) => void
-  onSaveSlot: (slot: number) => Promise<void>
-  selectedDate: string
-  onDemoteToBacklog: (slot: number) => Promise<void>
-  onDemoteToCarry: (slot: number) => Promise<void>
-  babautaModeEnabled: boolean
-  targetFocusMinutes: number
-  onLogFocus: (slot: number, minutes: number, source?: 'timer' | 'manual') => Promise<void>
-}) {
+}: SlotProps) => {
   const slotNum = Number(id.split('-').pop())
   const { isOver, setNodeRef } = useDroppable({ id })
   const [showSelector, setShowSelector] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
-  const [expanded, setExpanded] = useState(false)
   const [timerRunning, setTimerRunning] = useState(false)
   const [manualMinutes, setManualMinutes] = useState('')
   const [showFocusCelebration, setShowFocusCelebration] = useState(false)
-  const [lastTimerTick, setLastTimerTick] = useState<number | null>(null);
+  const [totalElapsedSeconds, setTotalElapsedSeconds] = useState(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const startTimeRef = useRef<number | null>(null);
+  const accumulatedMinutesRef = useRef(0);
+  const [expanded, setExpanded] = useState(false);
+  
+  // Reset timer when the task in the slot changes
+  useEffect(() => {
+    setTimerRunning(false);
+    setTotalElapsedSeconds(0);
+    accumulatedMinutesRef.current = 0;
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    startTimeRef.current = null;
+  }, [value?.task_id]);
 
   const isFocusedDone = babautaModeEnabled && (value?.focus_minutes ?? 0) >= targetFocusMinutes;
   const isTaskDone = value?.task_id && plannedTasks.find(t => t.id === value.task_id)?.done;
@@ -202,69 +219,69 @@ function Slot({
     }
   }, [isFocusedDone, showFocusCelebration]);
 
+  // Timer logic
   useEffect(() => {
-    let interval: NodeJS.Timeout | undefined;
-
-    const handleTick = async () => {
-      if (value?.task_id && timerRunning && document.visibilityState === 'visible') {
-        const now = Date.now();
-        if (lastTimerTick) {
-          const elapsedMinutes = Math.floor((now - lastTimerTick) / 60000);
-          if (elapsedMinutes >= 1) {
-            await onLogFocus(slotNum, elapsedMinutes, 'timer');
-          }
-        }
-        setLastTimerTick(now);
-      }
-    };
-
-    if (timerRunning) {
-      setLastTimerTick(Date.now());
-      interval = setInterval(handleTick, 60000); // Check every minute
-    } else if (interval) {
-      clearInterval(interval);
-      setLastTimerTick(null);
+    // Always clear existing interval first to prevent memory leaks
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
     }
 
-    return () => clearInterval(interval!); // Cleanup on unmount or timer stop
-  }, [timerRunning, value, slotNum, lastTimerTick, onLogFocus]);
-
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        setTimerRunning(false);
-      } else if (document.visibilityState === 'visible' && timerRunning) {
-        // Only resume if it was running before going hidden
-        // This might need more sophisticated state management for true resume
-        // For now, we'll keep it simple and rely on the user to restart if needed after long idle
-      }
-    };
-
-    const handleFocus = () => {
-      // Resume timer if it was running and window gets focus
-      // This is a simplified approach, a more robust solution would store timer state
-      // before blur and restore it.
-      if (timerRunning) {
-        // If timerRunning is true, handleTick will resume logging if visible
-        setLastTimerTick(Date.now());
-      }
-    };
-
-    const handleBlur = () => {
-      // Pause timer if window loses focus
-      setTimerRunning(false);
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
-    window.addEventListener('blur', handleBlur);
+    if (timerRunning) {
+      startTimeRef.current = Date.now();
+      timerRef.current = setInterval(() => {
+        if (startTimeRef.current) {
+          const elapsedSeconds = Math.floor((Date.now() - startTimeRef.current) / 1000);
+          setTotalElapsedSeconds(elapsedSeconds);
+          
+          // Log every full minute that passes as an increment
+          const newMinutes = Math.floor(elapsedSeconds / 60);
+          const minutesPassed = newMinutes - accumulatedMinutesRef.current;
+          if (minutesPassed > 0 && value?.task_id) {
+            // Add error handling for logging
+            try {
+              onLogFocus?.(slotNum, minutesPassed, 'timer');
+              accumulatedMinutesRef.current = newMinutes;
+            } catch (error) {
+              console.error('Failed to log focus time:', error);
+              // Continue timer but don't update accumulated minutes on failure
+            }
+          }
+        }
+      }, 1000);
+    } else {
+      startTimeRef.current = null;
+    }
 
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('blur', handleBlur);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
     };
-  }, [timerRunning]);
+  }, [timerRunning, value, slotNum, onLogFocus]);
+
+  const handleStartFocus = () => {
+    setTimerRunning(true);
+    setTotalElapsedSeconds(0);
+    accumulatedMinutesRef.current = 0;
+  };
+
+  const handlePauseFocus = async () => {
+    setTimerRunning(false);
+    // On pause, log any remaining seconds that have formed a full minute but haven't been logged yet
+    const newMinutes = Math.floor(totalElapsedSeconds / 60);
+    const minutesPassedSinceLastLog = newMinutes - accumulatedMinutesRef.current;
+    if (value?.task_id && minutesPassedSinceLastLog > 0) {
+      try {
+        await onLogFocus?.(slotNum, minutesPassedSinceLastLog, 'timer');
+        accumulatedMinutesRef.current = newMinutes;
+      } catch (error) {
+        console.error('Failed to log final focus time on pause:', error);
+        // Could show user notification here
+      }
+    }
+  };
 
   const handleLogManualMinutes = async () => {
     const minutes = parseInt(manualMinutes)
@@ -380,27 +397,47 @@ function Slot({
             </button>
             {babautaModeEnabled && value?.task_id && (
               <>
-                <button 
-                  className="btn btn-sm"
-                  onClick={() => setTimerRunning(prev => !prev)}
-                  title={timerRunning ? "Pause Focus Timer" : "Start Focus Timer"}
-                >
-                  {timerRunning ? "Pause" : "Start Focus"}
-                </button>
-                <input 
-                  type="number" 
-                  className="w-24 px-2 py-1 text-sm bg-white/10 rounded border border-white/10"
-                  placeholder="Log min"
-                  value={manualMinutes}
-                  onChange={e => setManualMinutes(e.target.value)}
-                />
-                <button 
-                  className="btn btn-sm" 
-                  onClick={handleLogManualMinutes}
-                  disabled={!manualMinutes || isNaN(parseInt(manualMinutes))}
-                >
-                  Log
-                </button>
+                <div className="flex items-center gap-2">
+                  {timerRunning ? (
+                    <>
+                      <span 
+                        className="text-xl font-mono min-w-[3.5rem] text-amber-300"
+                        aria-label={`Timer: ${Math.floor(totalElapsedSeconds / 60)} minutes ${totalElapsedSeconds % 60} seconds`}
+                      >
+                        {Math.floor(totalElapsedSeconds / 60)}:{String(totalElapsedSeconds % 60).padStart(2, '0')}
+                      </span>
+                      <button 
+                        onClick={handlePauseFocus}
+                        className="btn btn-sm bg-red-100 hover:bg-red-200 text-red-700"
+                      >
+                        Pause Focus
+                      </button>
+                    </>
+                  ) : (
+                    <button 
+                      onClick={handleStartFocus}
+                      className="btn btn-sm bg-green-100 hover:bg-green-200 text-green-700"
+                    >
+                      Start Focus
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="number" 
+                    className="w-24 px-2 py-1 text-sm bg-white/10 rounded border border-white/10"
+                    placeholder="Log min"
+                    value={manualMinutes}
+                    onChange={e => setManualMinutes(e.target.value)}
+                  />
+                  <button 
+                    className="btn btn-sm" 
+                    onClick={handleLogManualMinutes}
+                    disabled={!manualMinutes || isNaN(parseInt(manualMinutes))}
+                  >
+                    Log
+                  </button>
+                </div>
               </>
             )}
             <button className="btn btn-sm btn-backlog" title="Remove from Top 3 and keep for today" onClick={()=>onDemoteToBacklog(slotNum)}>Move to On Deck</button>
@@ -557,11 +594,11 @@ export default function TopThree({
         </div>
       </div>
       <div className="grid gap-3">
-        {[1,2,3].map(i => (
+        {[0,1,2].map(i => (
           <Slot
             key={i}
-            id={`top3-slot-${i}`}
-            value={items[i-1]}
+            id={`top3-slot-${i+1}`}
+            value={items[i]}
             onChange={setTitle}
             onDone={onDone}
             carryOverTasks={carryOverTasks}
