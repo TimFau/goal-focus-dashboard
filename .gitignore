@@ -7,3 +7,4 @@ supabase/.logs/
 supabase/.cache/
 supabase/.env
 supabase/**/node_modules/
+!supabase/.env.example

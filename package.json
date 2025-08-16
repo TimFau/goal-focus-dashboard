@@ -7,7 +7,15 @@
     "dev:fast": "next dev --turbo",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:status": "supabase status",
+    "db:push": "supabase db push",
+    "db:reset": "supabase db reset --force",
+    "func:serve:weekly": "supabase functions serve weekly-generator --env-file supabase/.env --no-verify-jwt",
+    "func:deploy:weekly": "supabase functions deploy weekly-generator --no-verify-jwt",
+    "func:logs": "supabase functions logs --project-ref $SUPABASE_PROJECT_REF || echo 'Set SUPABASE_PROJECT_REF env var'"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
